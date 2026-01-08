@@ -17,7 +17,6 @@ class LLMResponse(SimpleNamespace):
             Returns:
                 str: None if the requirements are met, otherwise a message indicating the missing requirements
         """
-        raise NotImplementedError("check_requirements is not implemented for this LLM")
 
 
     def __init__(
