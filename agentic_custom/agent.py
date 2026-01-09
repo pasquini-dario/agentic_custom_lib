@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict, Any, List, Callable
 
-from .llms import LLM
+from .llms import LLM, LLMResponse
 from .run_tracker import LLMRunTracker
 from .tooling.tools_context import ToolsContext
 from .tooling import ToolResult
@@ -63,8 +63,6 @@ class Agent:
         self,
         input_args,
         tools_context: ToolsContext,
-        get_response_hook: Callable=None,
-        after_tool_execution_hook: Callable=None,
         messages: List[Dict[str, Any]]=None,
         verbose=True,
     ):
@@ -75,6 +73,7 @@ class Agent:
         tool_schemas = self.generate_tool_schemas(tools_context)
         # execute agent loop
         for i in range(self.max_iterations):
+
             response = self.execute(messages, tools=tool_schemas)
             # log message for stats tracking
             self.run_tracker.add_message(response, verbose)
@@ -82,8 +81,7 @@ class Agent:
             # update history with model answer
             messages += message
 
-            if get_response_hook:
-                get_response_hook(response, messages)
+            self._get_response_hook(i, response, messages)
 
             # if tool calls are present, execute tools
             if response.tool_calls:
@@ -105,12 +103,14 @@ class Agent:
                     # update history with tool result
                     messages.append(tool_message)  
 
-                    if after_tool_execution_hook:
-                        after_tool_execution_hook(toll_call, tool_message)
+                    self._after_tool_execution_hook(i, toll_call, tool_message)
+                    
+            messages = self._end_round_messages_transformation_hook(i, messages)
+        
         else:
             self.run_tracker.signal_termination('Max iterations reached', verbose)
 
-                    
+        
         return messages
 
     def execute_tool(
@@ -128,3 +128,17 @@ class Agent:
         except Exception as ex:
             result = ToolResult(is_tool_invocation_successful=False, content=str(ex))
         return result
+
+    # Hook functions
+    def _get_response_hook(self, round_number: int, response: LLMResponse, messages: List[Dict[str, Any]]):
+        """ Hook function called after the model response is generated """
+        ...
+
+    def _after_tool_execution_hook(self, round_number: int, tool_call: Dict[str, Any], tool_message: Dict[str, Any]):
+        """ Hook function called after a tool is executed """
+        ...
+
+    def _end_round_messages_transformation_hook(self, round_number: int, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """ Hook function called after the round is ended. The value returned is the messages to be used in the next round. This can be used for message filtering and pruning."""
+        return messages
+    #########################################################################################

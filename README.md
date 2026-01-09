@@ -10,6 +10,19 @@ Current version supports LLMs served via:
 * Ollama
 
 # Installation
+
+## Install as a package (recommended)
+After cloning the repository, install the package:
+```bash
+pip install -e .
 ```
+Or install without editable mode:
+```bash
+pip install .
+```
+
+## Install dependencies only
+Alternatively, install dependencies directly:
+```bash
 pip install -r requirements.txt
 ```
