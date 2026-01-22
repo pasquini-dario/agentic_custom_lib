@@ -52,9 +52,11 @@ class Agent:
             {'role': 'user', 'content': user_data}
         ]
 
-    def single_execution(self, user_data: str, **kargs):
-        messages = self.get_ancestor_messages(user_data)
-        return self.execute(messages, **kargs)
+    def single_execution(self, user_data, **kargs):
+        messages = self.get_ancestor_messages(*user_data)
+        response = self.execute(messages, **kargs)
+        self.run_tracker.add_message(response)
+        return response
 
     def generate_tool_schemas(self, tools_context: ToolsContext):
         return [self.llm.make_schema_for_tool(tool) for tool in tools_context.tools]
