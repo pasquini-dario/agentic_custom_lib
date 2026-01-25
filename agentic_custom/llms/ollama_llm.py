@@ -1,10 +1,11 @@
 import json
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
-from ollama import chat
+from ollama import Client
+from httpx import ReadTimeout
 
 from ..tooling import Tool, ToolResult
-from . import LLM, LLMResponse
+from . import LLM, LLMResponse, LLMTimeoutException
 
 class OllamaLLM(LLM):
 
@@ -12,8 +13,14 @@ class OllamaLLM(LLM):
     def check_requirements():
         return None
     
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, host=None, timeout=None):
         self.model_name = model_name
+        self.host = host
+        self.timeout = timeout
+        self.client = Client(
+            host=self.host,
+            timeout=self.timeout,
+        )
     
     def generate(
         self,
@@ -30,18 +37,22 @@ class OllamaLLM(LLM):
         if format is not None:
             kwargs['format'] = format.model_json_schema()
 
-        response = chat(
-            model=self.model_name,
-            messages=messages,
-            options={
-                'temperature': temperature,
-                'max_tokens': max_tokens,
-                'top_k': top_k,
-            },
-            tools=tools,
-            think=think,
-            **kwargs
-        )
+        is_timeout = False
+        try:
+            response = self.client.chat(
+                model=self.model_name,
+                messages=messages,
+                options={
+                    'temperature': temperature,
+                    'max_tokens': max_tokens,
+                    'top_k': top_k,
+                },
+                tools=tools,
+                think=think,
+                **kwargs
+            )
+        except ReadTimeout:
+            raise LLMTimeoutException()
 
         # extract thinking from response
         thinking = self.get_thinking_from_response(response)
@@ -67,7 +78,7 @@ class OllamaLLM(LLM):
             thinking=thinking,
             structured_response=structured_response,
             raw_response=response,
-            error=parsing_error
+            error=parsing_error,
         )
         return response
             

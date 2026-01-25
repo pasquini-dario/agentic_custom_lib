@@ -2,7 +2,7 @@ from .tooling.tools_context import ToolsContext, tool
 from .tooling import Tool, Argument, ToolResult
 from .agent import Agent, AgentTerminationException
 from .run_tracker import LLMRunTracker
-from .llms import LLM
+from .llms import LLM, LLMTimeoutException
 
 
 from .llms.ollama_llm import OllamaLLM
@@ -38,4 +38,5 @@ __all__ = [
     "LLM",
     "check_llm_provider_requirements",
     "load_llm",
+    "LLMTimeoutException",
 ]

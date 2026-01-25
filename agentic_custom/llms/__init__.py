@@ -4,6 +4,9 @@ from types import SimpleNamespace
 
 from ..tooling import Tool
 
+class LLMTimeoutException(Exception):
+    pass
+
 class LLMResponse(SimpleNamespace):
     """ Class for LLM responses """
 

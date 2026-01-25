@@ -107,8 +107,10 @@ class LLMRunTracker:
     def add_message(self, llm_response: LLMResponse, verbose=False):
         if llm_response.is_successful():
             input_tokens, output_tokens = self.llm.get_num_tokens_response(llm_response)
-            self.tot_input_tokens += input_tokens
-            self.tot_output_tokens += output_tokens
+            if input_tokens:
+                self.tot_input_tokens += input_tokens
+            if output_tokens:
+                self.tot_output_tokens += output_tokens
 
             if self.llm.HAS_COST:
                 cost = cost_calculator(self.llm.model_name, input_tokens, output_tokens)
