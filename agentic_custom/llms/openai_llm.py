@@ -32,14 +32,12 @@ class OpenaiLLM(LLM):
         **kwargs
         ) -> LLMResponse:
 
-        kargs = {}
-
         if format is None:
             gen_function = self.client.responses.create
             structured_output = None
         else:
             gen_function = self.client.responses.parse
-            kargs['text_format'] = format
+            kwargs['text_format'] = format
 
         if isinstance(think, str):
             think = {'effort' : think}
@@ -51,7 +49,7 @@ class OpenaiLLM(LLM):
             temperature=temperature,
             max_output_tokens=max_tokens,
             tools=tools,
-            **kargs,
+            **kwargs,
         )
 
         if not format is None:

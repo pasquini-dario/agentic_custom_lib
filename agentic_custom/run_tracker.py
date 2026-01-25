@@ -12,6 +12,7 @@ class LLMRunTracker:
         self.llm = llm
         self.tot_input_tokens = 0
         self.tot_output_tokens = 0
+        self.cached_tokens = 0
         self.num_messages = 0
         self.tool_invocation_counts = defaultdict(int)
 
