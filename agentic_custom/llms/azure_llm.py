@@ -93,8 +93,9 @@ class AzureLLM(OllamaLLM):
 
     def get_num_tokens_response(self, response: LLMResponse):
         input_tokens = response.raw_response.usage.prompt_tokens
-        generated_tokens = response.raw_response.usage.completion_tokens
-        output_tokens = generated_tokens
-        return input_tokens, output_tokens
+        output_tokens = response.raw_response.usage.completion_tokens
+        cached_tokens = response.raw_response.usage.prompt_tokens_details.cached_tokens
+        reasoning_tokens = response.raw_response.usage.completion_tokens_details.reasoning_tokens
+        return input_tokens, output_tokens, reasoning_tokens, cached_tokens
 
     

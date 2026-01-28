@@ -12,7 +12,8 @@ class LLMRunTracker:
         self.llm = llm
         self.tot_input_tokens = 0
         self.tot_output_tokens = 0
-        self.cached_tokens = 0
+        self.tot_reasoning_tokens = 0
+        self.tot_cached_tokens = 0
         self.num_messages = 0
         self.tool_invocation_counts = defaultdict(int)
 
@@ -107,15 +108,21 @@ class LLMRunTracker:
 
     def add_message(self, llm_response: LLMResponse, verbose=False):
         if llm_response.is_successful():
-            input_tokens, output_tokens = self.llm.get_num_tokens_response(llm_response)
+            input_tokens, output_tokens, reasoning_tokens, cached_tokens = self.llm.get_num_tokens_response(llm_response)
             if input_tokens:
                 self.tot_input_tokens += input_tokens
             if output_tokens:
                 self.tot_output_tokens += output_tokens
+            if reasoning_tokens:
+                self.tot_reasoning_tokens += reasoning_tokens
+            if cached_tokens:
+                self.tot_cached_tokens += cached_tokens
 
             if self.llm.HAS_COST:
-                cost = cost_calculator(self.llm.model_name, input_tokens, output_tokens)
+                cost = cost_calculator(self.llm.model_name, input_tokens, output_tokens, cached_tokens)
                 if cost is not None:
+                    if verbose:
+                        print(f'Cost: {cost:.4f} USD')
                     self.total_cost += cost
 
             self.num_messages += 1
@@ -149,12 +156,19 @@ class LLMRunTracker:
             self.print_termination(reason)
 
 
+    def get_cached_tokens_percentage(self):
+        return self.tot_cached_tokens / self.tot_input_tokens
+
     def print_summary(self):
         print(f"{'=' * 70}")
         print(f'# Summary #########################################################')
         print(f'Total messages: {self.num_messages}')
         print(f'Total input tokens: {self.tot_input_tokens}')
         print(f'Total output tokens: {self.tot_output_tokens}')
+        print(f'Total reasoning tokens: {self.tot_reasoning_tokens}')
+        print(f'Total cached tokens: {self.tot_cached_tokens}') 
+        print(f'Total uncached output tokens: {self.tot_input_tokens - self.tot_cached_tokens}')
+        print(f'Cached tokens hit ratio: {self.get_cached_tokens_percentage() * 100:.2f}%')
         if self.llm.HAS_COST:
             print(f'Total cost: {self.total_cost:.4f} USD')
         else:

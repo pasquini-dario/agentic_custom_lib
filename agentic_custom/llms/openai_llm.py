@@ -124,4 +124,6 @@ class OpenaiLLM(LLM):
     def get_num_tokens_response(self, response: LLMResponse):
         input_tokens = response.raw_response.usage.input_tokens
         output_tokens = response.raw_response.usage.output_tokens
-        return input_tokens, output_tokens
+        reasoning_tokens = response.raw_response.usage.output_tokens_details.reasoning_tokens
+        cached_tokens = response.raw_response.usage.input_tokens_details.cached_tokens
+        return input_tokens, output_tokens, reasoning_tokens, cached_tokens

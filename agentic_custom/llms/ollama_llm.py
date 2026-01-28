@@ -137,7 +137,8 @@ class OllamaLLM(LLM):
     def get_num_tokens_response(self, response: LLMResponse):
         input_tokens = response.raw_response.prompt_eval_count
         output_tokens = response.raw_response.eval_count
-        return input_tokens, output_tokens
+        print(f'[WARNING] missing reasoning and cached tokens numbers for Ollama LLM')
+        return input_tokens, output_tokens, 0, 0
 
     def get_thinking_from_response(self, raw_response):
         return raw_response.message.get('thinking', None)
