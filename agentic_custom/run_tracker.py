@@ -6,6 +6,8 @@ from .llms import LLM, LLMResponse
 from .cost import cost_calculator
 from .tooling import ToolResult
 
+DEFAULT_CONTEXT_KEY = 'default'
+
 class LLMRunTracker:
     
     def __init__(self, llm: LLM):
@@ -15,11 +17,11 @@ class LLMRunTracker:
         self.tot_reasoning_tokens = 0
         self.tot_cached_tokens = 0
         self.num_messages = 0
+        
         self.tool_invocation_counts = defaultdict(int)
 
-        self.messages = []
-
-        self.total_cost = 0
+        self.messages = defaultdict(list)
+        self.total_cost = defaultdict(int)
 
     def set_llm(self, llm: LLM):
         self.llm = llm
@@ -106,7 +108,7 @@ class LLMRunTracker:
             print(f"│   {line}")
         print(f"└─────────────────────────────────────────────────────────────────────\n")
 
-    def add_message(self, llm_response: LLMResponse, verbose=False):
+    def add_message(self, llm_response: LLMResponse, verbose=False, context_key=DEFAULT_CONTEXT_KEY):
         if llm_response.is_successful():
             input_tokens, output_tokens, reasoning_tokens, cached_tokens = self.llm.get_num_tokens_response(llm_response)
             if input_tokens:
@@ -123,10 +125,10 @@ class LLMRunTracker:
                 if cost is not None:
                     if verbose:
                         print(f'Cost: {cost:.4f} USD')
-                    self.total_cost += cost
+                    self.total_cost[context_key] += cost
 
             self.num_messages += 1
-            self.messages.append(llm_response.message)
+            self.messages[context_key].append(llm_response.message)
 
         if verbose:
             if llm_response.is_successful():
@@ -170,7 +172,13 @@ class LLMRunTracker:
         print(f'Total uncached output tokens: {self.tot_input_tokens - self.tot_cached_tokens}')
         print(f'Cached tokens hit ratio: {self.get_cached_tokens_percentage() * 100:.2f}%')
         if self.llm.HAS_COST:
-            print(f'Total cost: {self.total_cost:.4f} USD')
+            if len(self.total_cost) == 1 and DEFAULT_CONTEXT_KEY in self.total_cost:
+                print(f'Total cost: {self.total_cost[DEFAULT_CONTEXT_KEY]:.4f} USD')
+            else:
+                for context_key, cost in self.total_cost.items():
+                    print(f'  - {context_key}: {cost:.4f} USD')
+                total = sum(self.total_cost.values())
+                print(f'Total cost: {total:.4f} USD')
         else:
             print(f'Total cost: N/A')
         print('Tool invocation counts:')

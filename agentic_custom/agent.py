@@ -5,6 +5,7 @@ from .llms import LLM, LLMResponse
 from .run_tracker import LLMRunTracker
 from .tooling.tools_context import ToolsContext
 from .tooling import ToolResult
+from .run_tracker import DEFAULT_CONTEXT_KEY
 
 class AgentTerminationException(Exception):
     pass
@@ -52,10 +53,10 @@ class Agent:
             {'role': 'user', 'content': user_data}
         ]
 
-    def single_execution(self, user_data, **kargs):
+    def single_execution(self, user_data, context_key=DEFAULT_CONTEXT_KEY, **kargs):
         messages = self.get_ancestor_messages(*user_data)
         response = self.execute(messages, **kargs)
-        self.run_tracker.add_message(response)
+        self.run_tracker.add_message(response, context_key=context_key)
         return response
 
     def generate_tool_schemas(self, tools_context: ToolsContext):
@@ -67,6 +68,7 @@ class Agent:
         tools_context: ToolsContext,
         messages: List[Dict[str, Any]]=None,
         verbose=True,
+        context_key=DEFAULT_CONTEXT_KEY,
     ):
         """ 
             Execute the agent loop, given a ToolsContext object defining the tools to be used.
@@ -81,14 +83,13 @@ class Agent:
 
             response = self.execute(messages, tools=tool_schemas)
             # log message for stats tracking
-            self.run_tracker.add_message(response, verbose)
+            self.run_tracker.add_message(response, verbose, context_key=context_key)
             message = response.message
             # update history with model answer
             messages += message
 
             self._get_response_hook(i, response, messages)
 
-            # tool_results = []
             # if tool calls are present, execute tools
             if response.tool_calls:
                 for toll_call in response.tool_calls:
@@ -97,12 +98,6 @@ class Agent:
                     # execute tool
                     tool_result = self.execute_tool(toll_call, tools_context)
 
-                    # tool_results.append(
-                    #     {
-                    #         'tool_call': toll_call,
-                    #         'tool_result': tool_result,
-                    #     }
-                    # )
                     tool_message = self.llm.generate_tool_response_message(toll_call, tool_result)
                     
                     if tool_result.is_termination:
