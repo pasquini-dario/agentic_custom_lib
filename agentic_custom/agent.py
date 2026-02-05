@@ -48,7 +48,7 @@ class Agent:
          
     def get_ancestor_messages(self, user_data: str):
         return [
-            {'role': 'system', 'content': self.system_prompt},
+            {'role': self.llm.SYSTEM_ROLE_NAME, 'content': self.system_prompt},
             {'role': 'user', 'content': user_data}
         ]
 
@@ -68,6 +68,9 @@ class Agent:
         messages: List[Dict[str, Any]]=None,
         verbose=True,
     ):
+        """ 
+            Execute the agent loop, given a ToolsContext object defining the tools to be used.
+        """
         if messages is None:
             # get initial messages
             messages = self.get_ancestor_messages(*input_args)
@@ -85,6 +88,7 @@ class Agent:
 
             self._get_response_hook(i, response, messages)
 
+            # tool_results = []
             # if tool calls are present, execute tools
             if response.tool_calls:
                 for toll_call in response.tool_calls:
@@ -92,6 +96,13 @@ class Agent:
                     self.run_tracker.add_tool_invocation(toll_call, verbose)
                     # execute tool
                     tool_result = self.execute_tool(toll_call, tools_context)
+
+                    # tool_results.append(
+                    #     {
+                    #         'tool_call': toll_call,
+                    #         'tool_result': tool_result,
+                    #     }
+                    # )
                     tool_message = self.llm.generate_tool_response_message(toll_call, tool_result)
                     
                     if tool_result.is_termination:

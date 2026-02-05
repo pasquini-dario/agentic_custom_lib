@@ -9,6 +9,8 @@ from . import LLM, LLMResponse, LLMTimeoutException
 
 class OllamaLLM(LLM):
 
+    SYSTEM_ROLE_NAME = 'developer'
+
     @staticmethod
     def check_requirements():
         return None

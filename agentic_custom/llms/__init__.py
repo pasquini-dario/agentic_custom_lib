@@ -10,18 +10,6 @@ class LLMTimeoutException(Exception):
 class LLMResponse(SimpleNamespace):
     """ Class for LLM responses """
 
-    @staticmethod
-    def check_requirements():
-        """
-            This method checks if the necessary requirements are met for the LLM to function correctly.
-            This includes checking if API keys are set or the necessary services are available.
-            It should be implemented for each LLM class.
-
-            Returns:
-                str: None if the requirements are met, otherwise a message indicating the missing requirements
-        """
-
-
     def __init__(
         self, 
         message: Any,
@@ -33,7 +21,6 @@ class LLMResponse(SimpleNamespace):
         error: Optional[Exception] = None,
     ):
         super().__init__()
-        error = self.check_requirements()
         if error:
             raise Exception(error)
         self.message = message
@@ -80,9 +67,21 @@ class LLMResponse(SimpleNamespace):
 
 class LLM:
     HAS_COST = False
-    
+
+    @staticmethod
+    def check_requirements():
+        """
+            This method checks if the necessary requirements are met for the LLM to function correctly.
+            This includes checking if API keys are set or the necessary services are available.
+            It should be implemented for each LLM class.
+
+            Returns:
+                str: None if the requirements are met, otherwise a message indicating the missing requirements
+        """
+
     def __init__(self, model_name: str):
         self.model_name = model_name
+        error = self.check_requirements()
 
     def generate(
         self,

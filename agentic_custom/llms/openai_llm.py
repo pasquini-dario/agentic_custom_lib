@@ -10,6 +10,7 @@ from ..tooling import Argument, Tool
 class OpenaiLLM(LLM):
 
     HAS_COST = True
+    SYSTEM_ROLE_NAME = 'developer'
 
     @staticmethod
     def check_requirements():
@@ -41,6 +42,7 @@ class OpenaiLLM(LLM):
 
         if isinstance(think, str):
             think = {'effort' : think}
+
 
         openai_response = gen_function(
             model=self.model_name,

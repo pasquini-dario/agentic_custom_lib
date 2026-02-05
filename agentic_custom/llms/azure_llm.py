@@ -10,6 +10,7 @@ from . import LLM, LLMResponse
 
 class AzureLLM(OllamaLLM):
     HAS_COST = True
+    SYSTEM_ROLE_NAME = 'developer'
 
     @staticmethod
     def check_requirements():
@@ -52,18 +53,20 @@ class AzureLLM(OllamaLLM):
             **completion_kwargs,
         )
 
+        out = openai_response.choices[0]
+
         if format:
-            structured_response = openai_response.choices[0].message.parsed.model_dump()
+            structured_response = out.message.parsed.model_dump()
         else:
             structured_response = None
 
-        tool_calls = openai_response.choices[0].message.tool_calls
+        tool_calls = out.message.tool_calls
         if tool_calls is None:
             tool_calls = []
 
         return LLMResponse(
-            message=[openai_response.choices[0].message],
-            content=openai_response.choices[0].message.content,
+            message=[out.message.model_dump()],
+            content=out.message.content,
             tool_calls=tool_calls,
             structured_response=structured_response,
             raw_response=openai_response
@@ -82,7 +85,6 @@ class AzureLLM(OllamaLLM):
             "content": json.dumps(tool_result.content)
         }
 
-   
     def get_tool_name(self, tool_call) -> str:
         return tool_call.function.name
 
