@@ -59,7 +59,9 @@ class Agent:
         self.run_tracker.add_message(response, context_key=context_key)
         return response
 
-    def generate_tool_schemas(self, tools_context: ToolsContext):
+    def generate_tool_schemas(self, tools_context: ToolsContext, enabled_tools_keys: List[str]=None):
+        if enabled_tools_keys is not None:
+            tools_context.tools = [tool for tool in tools_context.tools if tool.name in enabled_tools_keys]
         return [self.llm.make_schema_for_tool(tool) for tool in tools_context.tools]
 
     def execute_agent_loop(
@@ -67,17 +69,19 @@ class Agent:
         input_args,
         tools_context: ToolsContext,
         messages: List[Dict[str, Any]]=None,
+        enabled_tools_keys: List[str]=None,
         verbose=True,
         context_key=DEFAULT_CONTEXT_KEY,
     ):
         """ 
             Execute the agent loop, given a ToolsContext object defining the tools to be used.
+            if enabled_tools_keys is not None, only the tools with the keys in the list will be enabled. If it is None, all tools will be enabled.
         """
         if messages is None:
             # get initial messages
             messages = self.get_ancestor_messages(*input_args)
         # list schemas for tools
-        tool_schemas = self.generate_tool_schemas(tools_context)
+        tool_schemas = self.generate_tool_schemas(tools_context, enabled_tools_keys=enabled_tools_keys)
         # execute agent loop
         for i in range(self.max_iterations):
 

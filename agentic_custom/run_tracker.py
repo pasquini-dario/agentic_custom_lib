@@ -123,8 +123,6 @@ class LLMRunTracker:
             if self.llm.HAS_COST:
                 cost = cost_calculator(self.llm.model_name, input_tokens, output_tokens, cached_tokens)
                 if cost is not None:
-                    if verbose:
-                        print(f'Cost: {cost:.4f} USD')
                     self.total_cost[context_key] += cost
 
             self.num_messages += 1

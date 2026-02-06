@@ -32,5 +32,6 @@ prices = {
     'o3': {'cached_input_price': 0.5, 'input_price': 2.0, 'output_price': 8.0},
     'o3-mini': {'cached_input_price': 0.55, 'input_price': 1.1, 'output_price': 4.4},
     'o3-pro': {'cached_input_price': None, 'input_price': 20.0, 'output_price': 80.0},
-    'o4-mini': {'cached_input_price': 0.275, 'input_price': 1.1, 'output_price': 4.4}
+    'o4-mini': {'cached_input_price': 0.275, 'input_price': 1.1, 'output_price': 4.4},
+    'gpt-5.2': {'cached_input_price': 0.175, 'input_price': 1.75, 'output_price': 14.0},
 }
