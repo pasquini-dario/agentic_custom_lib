@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, List, Any
+from typing import Callable, List, Any, Dict
 
 class Argument:
     def __init__(
@@ -85,8 +85,6 @@ class ToolResult:
         self.content = content
         self.is_termination = is_termination
 
-    def have_tools_been_called(self):
-        return not self.tool_name is None
 
     def to_dict(self):
         return {
