@@ -103,8 +103,10 @@ class Agent:
             self._get_response_hook(i, response, messages)
 
             # if tool calls are present, execute tools
+            terminated = False
             if response.tool_calls:
                 for toll_call in response.tool_calls:
+                    round_output = round_output.clone()
                     # log tool invocation for stats tracking
                     round_output.set_tool_call(toll_call)
                     self.run_tracker.add_tool_invocation(toll_call, verbose)
@@ -118,7 +120,9 @@ class Agent:
                         # Termination requested
                         self.run_tracker.signal_termination('Termination requested', verbose)
                         round_output.set_termination(RoundOutput.TERMINATION_REQUESTED)
-                        return round_output
+                        terminated = True
+                        yield round_output
+                        break
 
                     # log tool result for stats tracking
                     self.run_tracker.add_tool_result(tool_result, verbose)
@@ -129,13 +133,15 @@ class Agent:
                     yield round_output
             else:
                 yield round_output
+
+            if terminated:
+                return
+
             messages = self._end_round_messages_transformation_hook(i, messages)
-        
         else:
             self.run_tracker.signal_termination('Max iterations reached', verbose)
             round_output.set_termination(RoundOutput.TERMINATION_REASON_MAX_ITERATIONS)
-
-        return round_output
+            yield round_output
 
     def execute_tool(
         self,
@@ -174,13 +180,33 @@ class RoundOutput:
     TERMINATION_REQUESTED = 'termination_requested'
     TASK_COMPLETED = 'task_completed'
 
-    def __init__(self, iteration:int=None):
+    def __init__(self,
+        iteration:int=None,
+        response: LLMResponse=None,
+        message: Dict[str, Any]=None,
+        tool_call: Dict[str, Any]=None,
+        tool_result: ToolResult=None,
+        termination: str=None,
+    ):
         self.iteration = iteration
-        self.response = None
-        self.message = None
-        self.tool_call = None
-        self.tool_result = None
-        self.termination = None
+        self.response = response
+        self.message = message
+        self.tool_call = tool_call
+        self.tool_result = tool_result
+        self.termination = termination
+
+    def to_dict(self):
+        return {
+            'iteration': self.iteration,
+            'response': self.response,
+            'message': self.message,
+            'tool_call': self.tool_call,
+            'tool_result': self.tool_result,
+            'termination': self.termination,
+        }
+
+    def clone(self):
+        return RoundOutput(**self.to_dict())
 
     def set_response(self, response: LLMResponse):
         self.response = response
