@@ -71,7 +71,28 @@ class ToolResult:
     """
     A class to wrap the result of a tool invocation. 
     """
-    def __init__(self, is_tool_invocation_successful: bool = True, content: Any = None, is_termination: bool = False):
+    def __init__(
+        self,
+        tool_name: str,
+        tool_args: Dict[str, Any],
+        content: Any = None,
+        is_tool_invocation_successful: bool = True,
+        is_termination: bool = False
+    ):
+        self.tool_name = tool_name
+        self.tool_args = tool_args
         self.is_tool_invocation_successful = is_tool_invocation_successful
         self.content = content
         self.is_termination = is_termination
+
+    def have_tools_been_called(self):
+        return not self.tool_name is None
+
+    def to_dict(self):
+        return {
+            "tool_name": self.tool_name,
+            "tool_args": self.tool_args,
+            "content": self.content,
+            "is_tool_invocation_successful": self.is_tool_invocation_successful,
+            "is_termination": self.is_termination,
+        }

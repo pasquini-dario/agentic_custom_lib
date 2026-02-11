@@ -48,10 +48,12 @@ class Agent:
         )
          
     def get_ancestor_messages(self, user_data: str):
-        return [
+        messages = [
             {'role': self.llm.SYSTEM_ROLE_NAME, 'content': self.system_prompt},
-            {'role': 'user', 'content': user_data}
         ]
+        if user_data:
+            messages.append({'role': 'user', 'content': user_data})
+        return messages
 
     def single_execution(self, user_data, context_key=DEFAULT_CONTEXT_KEY, **kargs):
         messages = self.get_ancestor_messages(*user_data)
@@ -85,10 +87,16 @@ class Agent:
         # execute agent loop
         for i in range(self.max_iterations):
 
+            round_output = RoundOutput(iteration=i)
+            
+            # raw response from the model
             response = self.execute(messages, tools=tool_schemas)
-            # log message for stats tracking
+            round_output.set_response(response)
             self.run_tracker.add_message(response, verbose, context_key=context_key)
+
+            # log message for stats tracking
             message = response.message
+            round_output.set_message(message)
             # update history with model answer
             messages += message
 
@@ -98,32 +106,36 @@ class Agent:
             if response.tool_calls:
                 for toll_call in response.tool_calls:
                     # log tool invocation for stats tracking
+                    round_output.set_tool_call(toll_call)
                     self.run_tracker.add_tool_invocation(toll_call, verbose)
                     # execute tool
                     tool_result = self.execute_tool(toll_call, tools_context)
+                    round_output.set_tool_result(tool_result)
 
                     tool_message = self.llm.generate_tool_response_message(toll_call, tool_result)
                     
                     if tool_result.is_termination:
                         # Termination requested
                         self.run_tracker.signal_termination('Termination requested', verbose)
-                        return messages
+                        round_output.set_termination(RoundOutput.TERMINATION_REQUESTED)
+                        return round_output
 
                     # log tool result for stats tracking
                     self.run_tracker.add_tool_result(tool_result, verbose)
                     
                     # update history with tool result
                     messages.append(tool_message)  
-
                     self._after_tool_execution_hook(i, toll_call, tool_message)
-                    
+                    yield round_output
+            else:
+                yield round_output
             messages = self._end_round_messages_transformation_hook(i, messages)
         
         else:
             self.run_tracker.signal_termination('Max iterations reached', verbose)
+            round_output.set_termination(RoundOutput.TERMINATION_REASON_MAX_ITERATIONS)
 
-        
-        return messages
+        return round_output
 
     def execute_tool(
         self,
@@ -134,11 +146,11 @@ class Agent:
         args = self.llm.get_tool_args(tool_call)
         try:
             content = tools_context.tools_functions[name](**args)
-            result = ToolResult(is_tool_invocation_successful=True, content=content)    
+            result = ToolResult(tool_name=name, tool_args=args, is_tool_invocation_successful=True, content=content)    
         except AgentTerminationException as ex:
-            result = ToolResult(is_termination=True)
+            result = ToolResult(tool_name=name, tool_args=args, is_termination=True)
         except Exception as ex:
-            result = ToolResult(is_tool_invocation_successful=False, content=str(ex))
+            result = ToolResult(tool_name=name, tool_args=args, is_tool_invocation_successful=False, content=str(ex))
         return result
 
     # Hook functions
@@ -154,3 +166,36 @@ class Agent:
         """ Hook function called after the round is ended. The value returned is the messages to be used in the next round. This can be used for message filtering and pruning."""
         return messages
     #########################################################################################
+
+
+class RoundOutput:
+
+    TERMINATION_REASON_MAX_ITERATIONS = 'max_iterations'
+    TERMINATION_REQUESTED = 'termination_requested'
+    TASK_COMPLETED = 'task_completed'
+
+    def __init__(self, iteration:int=None):
+        self.iteration = iteration
+        self.response = None
+        self.message = None
+        self.tool_call = None
+        self.tool_result = None
+        self.termination = None
+
+    def set_response(self, response: LLMResponse):
+        self.response = response
+
+    def set_message(self, message: Dict[str, Any]):
+        self.message = message
+
+    def set_tool_call(self, tool_call: Dict[str, Any]):
+        self.tool_call = tool_call
+
+    def set_tool_result(self, tool_result: ToolResult):
+        self.tool_result = tool_result
+
+    def set_termination(self, termination: str):
+        self.termination = termination
+
+    def have_tools_been_called(self):
+        return not self.tool_result is None
