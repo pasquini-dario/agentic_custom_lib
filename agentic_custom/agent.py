@@ -1,5 +1,8 @@
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Any, List, Callable
+from typing import Dict, Any, List
+from dataclasses import dataclass, replace, asdict
+
 
 from .llms import LLM, LLMResponse
 from .run_tracker import LLMRunTracker
@@ -106,7 +109,9 @@ class Agent:
             terminated = False
             if response.tool_calls:
                 for toll_call in response.tool_calls:
+                    # clone round output to avoid modifying the original object as multiple tool calls may be executed in the same round starting from the same LLM response
                     round_output = round_output.clone()
+
                     # log tool invocation for stats tracking
                     round_output.set_tool_call(toll_call)
                     self.run_tracker.add_tool_invocation(toll_call, verbose)
@@ -115,32 +120,38 @@ class Agent:
                     round_output.set_tool_result(tool_result)
 
                     tool_message = self.llm.generate_tool_response_message(toll_call, tool_result)
+                    # update history with tool result
+                    messages.append(tool_message)  
                     
+                    # log tool result for stats tracking
+                    self.run_tracker.add_tool_result(tool_result, verbose)
+                    self._after_tool_execution_hook(i, toll_call, tool_message)
+
                     if tool_result.is_termination:
                         # Termination requested
                         self.run_tracker.signal_termination('Termination requested', verbose)
                         round_output.set_termination(RoundOutput.TERMINATION_REQUESTED)
                         terminated = True
-                        yield round_output
-                        break
 
-                    # log tool result for stats tracking
-                    self.run_tracker.add_tool_result(tool_result, verbose)
-                    
-                    # update history with tool result
-                    messages.append(tool_message)  
-                    self._after_tool_execution_hook(i, toll_call, tool_message)
+                    round_output.set_messages_history(messages)
                     yield round_output
             else:
+                # if no tool calls
+                round_output.set_messages_history(messages)
                 yield round_output
 
+
             if terminated:
+                # explicit exit-condition met
                 return
 
+            # external hook to transform messages (default behavior is to return the messages as is)
             messages = self._end_round_messages_transformation_hook(i, messages)
         else:
+            # max iterations reached
             self.run_tracker.signal_termination('Max iterations reached', verbose)
             round_output.set_termination(RoundOutput.TERMINATION_REASON_MAX_ITERATIONS)
+            round_output.set_messages_history(messages)
             yield round_output
 
     def execute_tool(
@@ -174,30 +185,40 @@ class Agent:
     #########################################################################################
 
 
+@dataclass
 class RoundOutput:
+    """
+    Class to store the output of a round of execution of the agent loop.
+    A round is either:
+    * A full iteation loop: an LLM inference and a SINGLE or NONE tool call execution.
+    * If the LLM performs multiple tool invocations in the same round, a RoundOutput is created and returned for each.
+
+    Important:
+    * Currently, this class is not json-serializable.
+    """
 
     TERMINATION_REASON_MAX_ITERATIONS = 'max_iterations'
     TERMINATION_REQUESTED = 'termination_requested'
     TASK_COMPLETED = 'task_completed'
 
-    def __init__(self,
-        iteration:int=None,
-        response: LLMResponse=None,
-        message: Dict[str, Any]=None,
-        tool_call: Dict[str, Any]=None,
-        tool_result: ToolResult=None,
-        termination: str=None,
-    ):
-        self.iteration = iteration
-        self.response = response
-        self.message = message
-        self.tool_call = tool_call
-        self.tool_result = tool_result
-        self.termination = termination
+    iteration: int = None
+    messages_history: List[Dict[str, Any]] = None
+    response: LLMResponse = None
+    message: Dict[str, Any] = None
+    tool_call: Dict[str, Any] = None
+    tool_result: ToolResult = None
+    termination: str = None
+
+    # def to_dict(self):
+    #     return asdict(self)
+
+    # def clone(self):
+    #     return replace(self)
 
     def to_dict(self):
         return {
             'iteration': self.iteration,
+            'messages_history': self.messages_history,
             'response': self.response,
             'message': self.message,
             'tool_call': self.tool_call,
@@ -210,6 +231,9 @@ class RoundOutput:
 
     def set_response(self, response: LLMResponse):
         self.response = response
+
+    def set_messages_history(self, messages: List[Dict[str, Any]]):
+        self.messages_history = messages
 
     def set_message(self, message: Dict[str, Any]):
         self.message = message
