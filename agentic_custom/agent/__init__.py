@@ -1,18 +1,14 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Any, List
-from dataclasses import dataclass, replace, asdict
+from dataclasses import dataclass
 
-from .llms import LLM, LLMResponse
-from .run_tracker import LLMRunTracker
-from .tooling import ToolCall
-from .tooling.tools_context import ToolsContext
-from .run_tracker import DEFAULT_CONTEXT_KEY
+from ..llms import LLM, LLMResponse
+from ..run_tracker import LLMRunTracker
+from ..tooling.tools_context import ToolsContext
+from ..run_tracker import DEFAULT_CONTEXT_KEY
+from .round_promise import RoundPromise
 
-
-# Utility to create Enum dynamically
-def create_enum(name: str, values: List[str]) -> Enum:
-    return Enum(name, {v.replace(" ", "_").replace("-", "_").lower(): v for v in values})
 
 class Agent:
     output_model = None
@@ -75,9 +71,11 @@ class Agent:
         verbose=True,
         context_key=DEFAULT_CONTEXT_KEY,
     ):
-        """ 
-            Execute the agent loop, given a ToolsContext object defining the tools to be used.
-            if enabled_tools_keys is not None, only the tools with the keys in the list will be enabled. If it is None, all tools will be enabled.
+        """
+        Execute the agent loop, given a ToolsContext object defining the tools to be used.
+        If enabled_tools_keys is not None, only the tools with the keys in the list will be enabled. If it is None, all tools will be enabled.
+
+        When a yielded round_output contains a tool call, the caller must call round_output.wait() before advancing the generator (e.g. before the next next() or the next iteration of "for round_output in ..."); otherwise the loop will raise when it checks that the tool has been executed.
         """
         if messages is None:
             # get initial messages
@@ -87,7 +85,7 @@ class Agent:
         # execute agent loop
         for i in range(self.max_iterations):
 
-            round_output = RoundOutput(iteration=i)
+            round_output = RoundPromise(iteration=i)
             
             # raw response from the model
             response = self.execute(messages, tools=tool_schemas)
@@ -121,7 +119,7 @@ class Agent:
 
                     if not tool_call.is_executed():
                         # Make sure the tool call has been executed in case of an asynchronous tool call.
-                        raise Exception(f"Tool {tool_call.tool_name} has not been executed. Async tool calls must be handled by the developer. Use the wait() method to wait for the tool call to be executed before continuing the agentic loop.")
+                        round_output.wait()
 
                     tool_message = tool_call.generate_tool_response_message()
                     # update history with tool result
@@ -134,14 +132,13 @@ class Agent:
                     if tool_call.is_termination:
                         # Termination requested
                         self.run_tracker.signal_termination('Termination requested', verbose)
-                        round_output.set_termination(RoundOutput.TERMINATION_REQUESTED)
+                        round_output.set_termination(RoundPromise.TERMINATION_REQUESTED)
                         terminated = True
 
             else:
                 # if no tool calls
                 round_output.set_messages_history(messages)
                 yield round_output
-
 
             if terminated:
                 # explicit exit-condition met
@@ -152,7 +149,7 @@ class Agent:
         else:
             # max iterations reached
             self.run_tracker.signal_termination('Max iterations reached', verbose)
-            round_output.set_termination(RoundOutput.TERMINATION_REASON_MAX_ITERATIONS)
+            round_output.set_termination(RoundPromise.TERMINATION_REASON_MAX_ITERATIONS)
             round_output.set_messages_history(messages)
             yield round_output
 
@@ -171,67 +168,3 @@ class Agent:
         return messages
     #########################################################################################
 
-
-@dataclass
-class RoundOutput:
-    """
-    Class to store the output of a round of execution of the agent loop.
-    A round is either:
-    * A full iteation loop: an LLM inference and a SINGLE or NONE tool call execution.
-    * If the LLM performs multiple tool invocations in the same round, a RoundOutput is created and returned for each.
-
-    Important:
-    * Currently, this class is not json-serializable.
-    """
-
-    TERMINATION_REASON_MAX_ITERATIONS = 'max_iterations'
-    TERMINATION_REQUESTED = 'termination_requested'
-    TASK_COMPLETED = 'task_completed'
-
-    iteration: int = None
-    messages_history: List[Dict[str, Any]] = None
-    response: LLMResponse = None
-    message: Dict[str, Any] = None
-    tool_call: ToolCall = None
-    termination: str = None
-
-    # def to_dict(self):
-    #     return asdict(self)
-
-    # def clone(self):
-    #     return replace(self)
-
-    def to_dict(self):
-        return {
-            'iteration': self.iteration,
-            'messages_history': self.messages_history,
-            'response': self.response,
-            'message': self.message,
-            'tool_call': self.tool_call,
-            'termination': self.termination,
-        }
-        
-    def wait(self):
-        """ Wait for the tool call to be executed if asynchronous execution is enabled."""
-        raise NotImplementedError("")
-
-    def clone(self):
-        return RoundOutput(**self.to_dict())
-
-    def set_response(self, response: LLMResponse):
-        self.response = response
-
-    def set_messages_history(self, messages: List[Dict[str, Any]]):
-        self.messages_history = messages
-
-    def set_message(self, message: Dict[str, Any]):
-        self.message = message
-
-    def set_tool_call(self, tool_call: ToolCall):
-        self.tool_call = tool_call
-
-    def set_termination(self, termination: str):
-        self.termination = termination
-
-    def have_tools_been_called(self):
-        return not self.tool_result is None
