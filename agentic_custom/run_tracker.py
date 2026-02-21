@@ -1,23 +1,24 @@
 from collections import defaultdict
-from pprint import pformat
-
 
 from .llms import LLM, LLMResponse
 from .cost import cost_calculator
-from .tooling import ToolResult
+from .tooling import ToolCall
+from .run_visualize import RunVisualizer
 
 DEFAULT_CONTEXT_KEY = 'default'
 
+
 class LLMRunTracker:
-    
+
     def __init__(self, llm: LLM):
         self.llm = llm
+        self._visualizer = RunVisualizer()
         self.tot_input_tokens = 0
         self.tot_output_tokens = 0
         self.tot_reasoning_tokens = 0
         self.tot_cached_tokens = 0
         self.num_messages = 0
-        
+
         self.tool_invocation_counts = defaultdict(int)
 
         self.messages = defaultdict(list)
@@ -25,88 +26,7 @@ class LLMRunTracker:
 
     def set_llm(self, llm: LLM):
         self.llm = llm
-        print(f"RunTracker: LLM set to {self.llm.model_name}")
-
-    def print_tool_invocation(self,tool_call):
-        print(f"{'=' * 70}")
-        name = self.llm.get_tool_name(tool_call)
-        args = self.llm.get_tool_args(tool_call)
-        print(f"┌────────────────────────── 🛠️ Tool Call ──────────────────────────")
-        print(f"│ Name      : {name}")
-        print(f"│ Arguments :")
-        if args:
-            args_str = pformat(args, indent=2, width=60)
-            args_lines = args_str.splitlines()
-            for line in args_lines:
-                print(f"│   {line}")
-        else:
-            print(f"│   (No arguments)")
-        print(f"└─────────────────────────────────────────────────────────────────────\n")
-
-    def print_message(self, llm_response):
-        print(f"{'=' * 70}")
-        print(f"┌────────────────────────── Message ──────────────────────────")
-        thinking = llm_response.thinking
-        if thinking:
-            print(f"│ 💡 Thinking  :")
-            thinking_str = pformat(thinking, indent=2, width=60)
-            thinking_lines = thinking_str.splitlines()
-            for line in thinking_lines:
-                print(f"│   {line}")
-        content = llm_response.content
-        print(f"│ 📄 Content   :")
-        if content:
-            content_str = pformat(content, indent=2, width=60)
-            content_lines = content_str.splitlines()
-            for line in content_lines:
-                print(f"│   {line}")
-        else:
-            print(f"│   (No content)")
-        message = llm_response.message
-        print(f"│ Message   :")
-        message_str = pformat(message, indent=2, width=60)
-        message_lines = message_str.splitlines()
-        for line in message_lines:
-            print(f"│   {line}")
-        print(f"└─────────────────────────────────────────────────────────────────────\n")
-
-    def print_tool_result(self, tool_result: ToolResult):
-        print(f"{'=' * 70}")
-        # Extract fields from tool_result (typically a dict with tool_call_id, role, name, content)
-        content = tool_result.content
-        
-        if not tool_result.is_tool_invocation_successful:
-            print(f"┌────────────────────────── ❌ Tool Error ──────────────────────────")
-            print(f"│ Error       :")
-            if content:
-                content_str = pformat(content, indent=2, width=60)
-                content_lines = content_str.splitlines()
-                for line in content_lines:
-                    print(f"│   {line}")
-            else:
-                print(f"│   (No error details)")
-            print(f"└─────────────────────────────────────────────────────────────────────\n")
-        else:
-            print(f"┌────────────────────────── ✅ Tool Result ──────────────────────────")
-            print(f"│ Result       :")
-            if content:
-                content_str = pformat(content, indent=2, width=60)
-                content_lines = content_str.splitlines()
-                for line in content_lines:
-                    print(f"│   {line}")
-            else:
-                print(f"│   (No result)")
-            print(f"└─────────────────────────────────────────────────────────────────────\n")
-
-    def print_termination(self, reason):
-        print(f"{'=' * 70}")
-        print(f"┌────────────────────────── 🛑 Termination ──────────────────────────")
-        print(f"│ Reason     :")
-        reason_str = pformat(reason, indent=2, width=60)
-        reason_lines = reason_str.splitlines()
-        for line in reason_lines:
-            print(f"│   {line}")
-        print(f"└─────────────────────────────────────────────────────────────────────\n")
+        self._visualizer.print_llm_set(self.llm.model_name)
 
     def add_message(self, llm_response: LLMResponse, verbose=False, context_key=DEFAULT_CONTEXT_KEY):
         if llm_response.is_successful():
@@ -133,56 +53,28 @@ class LLMRunTracker:
                 if llm_response.tool_calls:
                     print(f'#{len(llm_response.tool_calls)} Tool calls')
                 else:
-                    self.print_message(llm_response)
+                    self._visualizer.print_message(llm_response)
             else:
                 print(f'[ERROR] --> {llm_response.error}')
-    
-    def add_tool_invocation(self, tool_invocation, verbose):
 
+    def add_tool_invocation(self, tool_call: ToolCall, verbose):
         if verbose:
-            self.print_tool_invocation(tool_invocation)
-       
-        name = self.llm.get_tool_name(tool_invocation)
+            self._visualizer.print_tool_invocation(tool_call)
+
+        name = tool_call.tool_name
         self.tool_invocation_counts[name] += 1
 
-
-    def add_tool_result(self, tool_result, verbose):
+    def add_tool_result(self, tool_call: ToolCall, verbose):
         if verbose:
-            self.print_tool_result(tool_result)
-
+            self._visualizer.print_tool_result(tool_call)
 
     def signal_termination(self, reason, verbose):
         if verbose:
-            self.print_termination(reason)
+            self._visualizer.print_termination(reason)
 
 
     def get_cached_tokens_percentage(self):
         return self.tot_cached_tokens / self.tot_input_tokens
 
     def print_summary(self):
-        print(f"{'=' * 70}")
-        print(f'# Summary #########################################################')
-        print(f'Total messages: {self.num_messages}')
-        print(f'Total input tokens: {self.tot_input_tokens}')
-        print(f'Total output tokens: {self.tot_output_tokens}')
-        print(f'Total reasoning tokens: {self.tot_reasoning_tokens}')
-        print(f'Total cached tokens: {self.tot_cached_tokens}') 
-        print(f'Total uncached output tokens: {self.tot_input_tokens - self.tot_cached_tokens}')
-        print(f'Cached tokens hit ratio: {self.get_cached_tokens_percentage() * 100:.2f}%')
-        if self.llm.HAS_COST:
-            if len(self.total_cost) == 1 and DEFAULT_CONTEXT_KEY in self.total_cost:
-                print(f'Total cost: {self.total_cost[DEFAULT_CONTEXT_KEY]:.4f} USD')
-            else:
-                for context_key, cost in self.total_cost.items():
-                    print(f'  - {context_key}: {cost:.4f} USD')
-                total = sum(self.total_cost.values())
-                print(f'Total cost: {total:.4f} USD')
-        else:
-            print(f'Total cost: N/A')
-        print('Tool invocation counts:')
-        if self.tool_invocation_counts:
-            for tool_name, count in self.tool_invocation_counts.items():
-                print(f'  - {tool_name}: {count}')
-        else:
-            print('  (none)')
-        print(f'########################################################')
+        self._visualizer.print_summary(self, DEFAULT_CONTEXT_KEY)

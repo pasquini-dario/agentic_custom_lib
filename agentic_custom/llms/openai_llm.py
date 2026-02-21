@@ -5,7 +5,7 @@ import json
 import os
 
 from . import LLM, LLMResponse
-from ..tooling import Argument, Tool
+from ..tooling import Argument, Tool, ToolCall
 
 class OpenaiLLM(LLM):
 
@@ -58,8 +58,8 @@ class OpenaiLLM(LLM):
             structured_output = openai_response.output_parsed.model_dump()
 
         # function calling
-        tool_calls = [output for output in openai_response.output if output.type == 'function_call']
-
+        raw_tool_calls = [output for output in openai_response.output if output.type == 'function_call']
+        tool_calls = [ToolCall(self, raw_tool_call) for raw_tool_call in raw_tool_calls]
         response = LLMResponse(
             message=openai_response.output,
             content=openai_response.output_text,
@@ -106,13 +106,12 @@ class OpenaiLLM(LLM):
 
     def generate_tool_response_message(
         self,
-        tool_call_item,
-        tool_result,
+        tool_call : ToolCall,
     ) -> Dict[str, Any]:
         return {
             "type": "function_call_output",
-            "call_id": tool_call_item.call_id,
-            "output": json.dumps(tool_result.content),
+            "call_id": tool_call.raw_tool_call.call_id,
+            "output": json.dumps(tool_call.content),
         }
 
     def get_tool_name(self, tool_call) -> str:

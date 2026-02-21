@@ -1,6 +1,6 @@
 from .tooling.tools_context import ToolsContext, tool 
-from .tooling import Tool, Argument, ToolResult
-from .agent import Agent, RoundOutput, AgentTerminationException
+from .tooling import Tool, Argument, AgentTerminationException
+from .agent import Agent, RoundPromise
 from .run_tracker import LLMRunTracker
 from .llms import LLM, LLMTimeoutException
 
@@ -38,5 +38,5 @@ __all__ = [
     "check_llm_provider_requirements",
     "load_llm",
     "LLMTimeoutException",
-    "RoundOutput",
+    "RoundPromise",
 ]

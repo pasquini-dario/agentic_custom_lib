@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from ollama import Client
 from httpx import ReadTimeout
 
-from ..tooling import Tool, ToolResult
+from ..tooling import Tool, ToolCall
 from . import LLM, LLMResponse, LLMTimeoutException
 
 class OllamaLLM(LLM):
@@ -62,7 +62,8 @@ class OllamaLLM(LLM):
         # Extract tool calls if present
         tool_calls = None
         if hasattr(response.message, 'tool_calls') and response.message.tool_calls:
-            tool_calls = response.message.tool_calls
+            raw_tool_calls = response.message.tool_calls
+            tool_calls = [ToolCall(self, raw_tool_call) for raw_tool_call in raw_tool_calls]
 
         # Handle structured format case
         parsing_error = None
@@ -85,7 +86,6 @@ class OllamaLLM(LLM):
         return response
             
 
-
     def get_tool_name(self, tool_call: Dict[str, Any]) -> str:
         return tool_call.function.name  
     
@@ -94,13 +94,12 @@ class OllamaLLM(LLM):
 
     def generate_tool_response_message(
         self,
-        tool_call,
-        tool_result: ToolResult,
+        tool_call : ToolCall,
     ) -> Dict[str, Any]:
         return {
             "role": "tool",
-            "tool_name": self.get_tool_name(tool_call),
-            "content": json.dumps(tool_result.content)
+            "tool_name": tool_call.tool_name,
+            "content": json.dumps(tool_call.content)
         }
 
     @staticmethod

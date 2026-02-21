@@ -6,6 +6,7 @@ import os
 
 from .ollama_llm import OllamaLLM
 from . import LLM, LLMResponse
+from ..tooling import ToolCall
 
 
 class AzureLLM(OllamaLLM):
@@ -63,6 +64,8 @@ class AzureLLM(OllamaLLM):
         tool_calls = out.message.tool_calls
         if tool_calls is None:
             tool_calls = []
+        else:
+            tool_calls = [ToolCall(self, tool_call) for tool_call in tool_calls]
 
         return LLMResponse(
             message=[out.message.model_dump()],
@@ -75,14 +78,13 @@ class AzureLLM(OllamaLLM):
 
     def generate_tool_response_message(
         self,
-        fuction_call_item,
-        tool_result,
+        tool_call : ToolCall,
     ) -> Dict[str, Any]:
         return {
-            'tool_call_id' : fuction_call_item.id,
+            'tool_call_id' : tool_call.raw_tool_call.id,
             "role": "tool",
-            'name': self.get_tool_name(fuction_call_item),
-            "content": json.dumps(tool_result.content)
+            'name': tool_call.tool_name,
+            "content": json.dumps(tool_call.content)
         }
 
     def get_tool_name(self, tool_call) -> str:
