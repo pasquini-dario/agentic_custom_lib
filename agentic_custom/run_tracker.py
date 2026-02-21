@@ -1,10 +1,9 @@
 from collections import defaultdict
 from pprint import pformat
 
-
 from .llms import LLM, LLMResponse
 from .cost import cost_calculator
-from .tooling import ToolResult
+from .tooling import ToolCall
 
 DEFAULT_CONTEXT_KEY = 'default'
 
@@ -27,10 +26,10 @@ class LLMRunTracker:
         self.llm = llm
         print(f"RunTracker: LLM set to {self.llm.model_name}")
 
-    def print_tool_invocation(self,tool_call):
+    def print_tool_invocation(self, tool_call: ToolCall):
         print(f"{'=' * 70}")
-        name = self.llm.get_tool_name(tool_call)
-        args = self.llm.get_tool_args(tool_call)
+        name = tool_call.tool_name
+        args = tool_call.tool_args
         print(f"┌────────────────────────── 🛠️ Tool Call ──────────────────────────")
         print(f"│ Name      : {name}")
         print(f"│ Arguments :")
@@ -70,12 +69,11 @@ class LLMRunTracker:
             print(f"│   {line}")
         print(f"└─────────────────────────────────────────────────────────────────────\n")
 
-    def print_tool_result(self, tool_result: ToolResult):
+    def print_tool_result(self, tool_call: ToolCall):
         print(f"{'=' * 70}")
-        # Extract fields from tool_result (typically a dict with tool_call_id, role, name, content)
-        content = tool_result.content
+        content = tool_call.content
         
-        if not tool_result.is_tool_invocation_successful:
+        if not tool_call.is_tool_invocation_successful:
             print(f"┌────────────────────────── ❌ Tool Error ──────────────────────────")
             print(f"│ Error       :")
             if content:
@@ -137,18 +135,18 @@ class LLMRunTracker:
             else:
                 print(f'[ERROR] --> {llm_response.error}')
     
-    def add_tool_invocation(self, tool_invocation, verbose):
+    def add_tool_invocation(self, tool_call: ToolCall, verbose):
 
         if verbose:
-            self.print_tool_invocation(tool_invocation)
+            self.print_tool_invocation(tool_call)
        
-        name = self.llm.get_tool_name(tool_invocation)
+        name = tool_call.tool_name
         self.tool_invocation_counts[name] += 1
 
 
-    def add_tool_result(self, tool_result, verbose):
+    def add_tool_result(self, tool_call: ToolCall, verbose):
         if verbose:
-            self.print_tool_result(tool_result)
+            self.print_tool_result(tool_call)
 
 
     def signal_termination(self, reason, verbose):

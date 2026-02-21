@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 from types import SimpleNamespace
 
-from ..tooling import Tool
+from ..tooling import Tool, ToolCall
 
 class LLMTimeoutException(Exception):
     pass
@@ -14,7 +14,7 @@ class LLMResponse(SimpleNamespace):
         self, 
         message: Any,
         content: str,
-        tool_calls: List[Dict[str, Any]] = [],
+        tool_calls: List[ToolCall] = [],
         thinking: Optional[str] = None,
         raw_response: Optional[Any] = None,
         structured_response: Optional[Any] = None,

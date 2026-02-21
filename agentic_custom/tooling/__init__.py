@@ -1,6 +1,12 @@
 from dataclasses import dataclass
 from typing import Callable, List, Any, Dict
 
+from .tools_context import ToolsContext
+
+class AgentTerminationException(Exception):
+    """ Exception raised when the agent is terminated the execution loop."""
+    pass
+
 class Argument:
     def __init__(
         self,
@@ -67,24 +73,52 @@ class Tool:
         return "\n".join(lines)
 
 
-class ToolResult:
+class ToolCall:
     """
-    A class to wrap the result of a tool invocation. 
+    A class to wrap a tool call from an LLM
     """
     def __init__(
         self,
-        tool_name: str,
-        tool_args: Dict[str, Any],
-        content: Any = None,
-        is_tool_invocation_successful: bool = True,
-        is_termination: bool = False
+        llm,
+        raw_tool_call,
     ):
-        self.tool_name = tool_name
-        self.tool_args = tool_args
-        self.is_tool_invocation_successful = is_tool_invocation_successful
-        self.content = content
-        self.is_termination = is_termination
+        self.llm = llm
+        self.raw_tool_call = raw_tool_call
+        self.tool_name = self.llm.get_tool_name(self.raw_tool_call)
+        self.tool_args = self.llm.get_tool_args(self.raw_tool_call)
+        self.is_tool_invocation_successful = None
+        self.content = None
+        self.is_termination = None
 
+    def is_executed(self):
+        return self.is_tool_invocation_successful is not None
+
+    def _run(self, tool_context: ToolsContext):
+        try:
+            self.content = tool_context.tools_functions[self.tool_name](**self.tool_args)
+            self.is_tool_invocation_successful = True
+            self.is_termination = False
+        except AgentTerminationException as ex:
+            self.is_tool_invocation_successful = True
+            self.is_termination = True
+            self.content = str(ex)
+        except Exception as ex:
+            self.is_tool_invocation_successful = False
+            self.is_termination = False
+            self.content = str(ex)
+
+    def run_sync(self, tool_context: ToolsContext):
+        self._run(tool_context)
+
+    def run_async(self, tool_context: ToolsContext):
+        ...
+
+    def generate_tool_response_message(self):
+        """ Generate a tool result message to be inserted in the messages history. Format depends on the LLM in use."""
+        if not self.is_executed():
+            raise ValueError("Tool call not executed")
+
+        return self.llm.generate_tool_response_message(self)
 
     def to_dict(self):
         return {

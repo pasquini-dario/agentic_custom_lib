@@ -3,15 +3,12 @@ from enum import Enum
 from typing import Dict, Any, List
 from dataclasses import dataclass, replace, asdict
 
-
 from .llms import LLM, LLMResponse
 from .run_tracker import LLMRunTracker
+from .tooling import ToolCall
 from .tooling.tools_context import ToolsContext
-from .tooling import ToolResult
 from .run_tracker import DEFAULT_CONTEXT_KEY
 
-class AgentTerminationException(Exception):
-    pass
 
 # Utility to create Enum dynamically
 def create_enum(name: str, values: List[str]) -> Enum:
@@ -108,33 +105,38 @@ class Agent:
             # if tool calls are present, execute tools
             terminated = False
             if response.tool_calls:
-                for toll_call in response.tool_calls:
+                for tool_call in response.tool_calls:
                     # clone round output to avoid modifying the original object as multiple tool calls may be executed in the same round starting from the same LLM response
                     round_output = round_output.clone()
 
                     # log tool invocation for stats tracking
-                    round_output.set_tool_call(toll_call)
-                    self.run_tracker.add_tool_invocation(toll_call, verbose)
+                    round_output.set_tool_call(tool_call)
+                    self.run_tracker.add_tool_invocation(tool_call, verbose)
                     # execute tool
-                    tool_result = self.execute_tool(toll_call, tools_context)
-                    round_output.set_tool_result(tool_result)
+                    tool_call.run_sync(tools_context)
 
-                    tool_message = self.llm.generate_tool_response_message(toll_call, tool_result)
+                    round_output.set_messages_history(messages)
+                    # return round output to the caller
+                    yield round_output
+
+                    if not tool_call.is_executed():
+                        # Make sure the tool call has been executed in case of an asynchronous tool call.
+                        raise Exception(f"Tool {tool_call.tool_name} has not been executed. Async tool calls must be handled by the developer. Use the wait() method to wait for the tool call to be executed before continuing the agentic loop.")
+
+                    tool_message = tool_call.generate_tool_response_message()
                     # update history with tool result
                     messages.append(tool_message)  
                     
                     # log tool result for stats tracking
-                    self.run_tracker.add_tool_result(tool_result, verbose)
-                    self._after_tool_execution_hook(i, toll_call, tool_message)
+                    self.run_tracker.add_tool_result(tool_call, verbose)
+                    self._after_tool_execution_hook(i, tool_call, tool_message)
 
-                    if tool_result.is_termination:
+                    if tool_call.is_termination:
                         # Termination requested
                         self.run_tracker.signal_termination('Termination requested', verbose)
                         round_output.set_termination(RoundOutput.TERMINATION_REQUESTED)
                         terminated = True
 
-                    round_output.set_messages_history(messages)
-                    yield round_output
             else:
                 # if no tool calls
                 round_output.set_messages_history(messages)
@@ -154,21 +156,6 @@ class Agent:
             round_output.set_messages_history(messages)
             yield round_output
 
-    def execute_tool(
-        self,
-        tool_call,
-        tools_context: ToolsContext
-    ):
-        name = self.llm.get_tool_name(tool_call)
-        args = self.llm.get_tool_args(tool_call)
-        try:
-            content = tools_context.tools_functions[name](**args)
-            result = ToolResult(tool_name=name, tool_args=args, is_tool_invocation_successful=True, content=content)    
-        except AgentTerminationException as ex:
-            result = ToolResult(tool_name=name, tool_args=args, is_termination=True)
-        except Exception as ex:
-            result = ToolResult(tool_name=name, tool_args=args, is_tool_invocation_successful=False, content=str(ex))
-        return result
 
     # Hook functions
     def _get_response_hook(self, round_number: int, response: LLMResponse, messages: List[Dict[str, Any]]):
@@ -205,8 +192,7 @@ class RoundOutput:
     messages_history: List[Dict[str, Any]] = None
     response: LLMResponse = None
     message: Dict[str, Any] = None
-    tool_call: Dict[str, Any] = None
-    tool_result: ToolResult = None
+    tool_call: ToolCall = None
     termination: str = None
 
     # def to_dict(self):
@@ -222,9 +208,12 @@ class RoundOutput:
             'response': self.response,
             'message': self.message,
             'tool_call': self.tool_call,
-            'tool_result': self.tool_result,
             'termination': self.termination,
         }
+        
+    def wait(self):
+        """ Wait for the tool call to be executed if asynchronous execution is enabled."""
+        raise NotImplementedError("")
 
     def clone(self):
         return RoundOutput(**self.to_dict())
@@ -238,11 +227,8 @@ class RoundOutput:
     def set_message(self, message: Dict[str, Any]):
         self.message = message
 
-    def set_tool_call(self, tool_call: Dict[str, Any]):
+    def set_tool_call(self, tool_call: ToolCall):
         self.tool_call = tool_call
-
-    def set_tool_result(self, tool_result: ToolResult):
-        self.tool_result = tool_result
 
     def set_termination(self, termination: str):
         self.termination = termination
