@@ -113,10 +113,10 @@ class Agent:
                     round_output.set_tool_call(tool_call)
                     self.run_tracker.add_tool_invocation(tool_call, verbose)
                     # execute tool
-                    tool_call.run_sync(tools_context)
+                    tool_call.execute(tools_context)
 
                     round_output.set_messages_history(messages)
-                    # return round output to the caller
+                    # return control to the caller
                     yield round_output
 
                     if not tool_call.is_executed():

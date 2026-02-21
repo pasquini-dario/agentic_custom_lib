@@ -93,7 +93,7 @@ class ToolCall:
     def is_executed(self):
         return self.is_tool_invocation_successful is not None
 
-    def _run(self, tool_context: ToolsContext):
+    def execute(self, tool_context: ToolsContext):
         try:
             self.content = tool_context.tools_functions[self.tool_name](**self.tool_args)
             self.is_tool_invocation_successful = True
@@ -107,11 +107,6 @@ class ToolCall:
             self.is_termination = False
             self.content = str(ex)
 
-    def run_sync(self, tool_context: ToolsContext):
-        self._run(tool_context)
-
-    def run_async(self, tool_context: ToolsContext):
-        ...
 
     def generate_tool_response_message(self):
         """ Generate a tool result message to be inserted in the messages history. Format depends on the LLM in use."""
