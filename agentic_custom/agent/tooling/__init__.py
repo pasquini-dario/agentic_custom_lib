@@ -103,16 +103,16 @@ class ToolCall:
     def _run_tool(self, tool_context: ToolsContext):
         try:
             self.content = tool_context.tools_functions[self.tool_name](**self.tool_args)
-            self.is_tool_invocation_successful = True
             self.is_termination = False
-        except AgentTerminationException as ex:
             self.is_tool_invocation_successful = True
+        except AgentTerminationException as ex:
             self.is_termination = True
             self.content = str(ex)
+            self.is_tool_invocation_successful = True
         except Exception as ex:
-            self.is_tool_invocation_successful = False
             self.is_termination = False
             self.content = str(ex)
+            self.is_tool_invocation_successful = False
         finally:
             self._done.set()
 

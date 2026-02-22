@@ -2,7 +2,7 @@ from pprint import pformat
 from typing import Protocol
 
 from .llms import LLMResponse
-from .tooling import ToolCall
+from .agent.tooling import ToolCall
 
 
 class _LLMSummaryView(Protocol):

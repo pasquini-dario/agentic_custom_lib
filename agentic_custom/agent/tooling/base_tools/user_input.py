@@ -34,4 +34,3 @@ def ask_user_for_input_tool(*args, **kwargs) -> Tool:
             )
         ]
     )
-

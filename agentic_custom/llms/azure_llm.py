@@ -1,17 +1,24 @@
 import json
+import openai
 from openai import AzureOpenAI
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import os
 
 from .ollama_llm import OllamaLLM
-from . import LLM, LLMResponse
-from ..tooling import ToolCall
+from . import LLM, LLMResponse, LLMContentFilteringException
+from ..agent.tooling import ToolCall
 
 
 class AzureLLM(OllamaLLM):
     HAS_COST = True
     SYSTEM_ROLE_NAME = 'developer'
+
+    @staticmethod
+    def was_content_filtered(response: openai.BadRequestError) -> bool:
+        body = response['innererror']['content_filter_result']
+        return any([body[kind]['filtered'] for kind in body])
+
 
     @staticmethod
     def check_requirements():
@@ -44,15 +51,22 @@ class AzureLLM(OllamaLLM):
         else:
             completion_fun = self.client.chat.completions.create
             
-        openai_response = completion_fun(
-            model=self.model_name,
-            temperature=temperature,
-            max_completion_tokens=max_tokens,
-            tools=tools,
-            messages=messages,
-            reasoning_effort=think,
-            **completion_kwargs,
-        )
+        try:
+            openai_response = completion_fun(
+                model=self.model_name,
+                temperature=temperature,
+                max_completion_tokens=max_tokens,
+                tools=tools,
+                messages=messages,
+                reasoning_effort=think,
+                **completion_kwargs,
+            )
+        except openai.BadRequestError as ex:
+            # check if the error is due to content filtering
+            if self.was_content_filtered(ex.body):
+                raise LLMContentFilteringException(ex.body)
+            else:
+                raise ex
 
         out = openai_response.choices[0]
 

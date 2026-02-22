@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from ollama import Client
 from httpx import ReadTimeout
 
-from ..tooling import Tool, ToolCall
+from ..agent.tooling import Tool, ToolCall
 from . import LLM, LLMResponse, LLMTimeoutException
 
 class OllamaLLM(LLM):

@@ -2,10 +2,13 @@ from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 from types import SimpleNamespace
 
-from ..tooling import Tool, ToolCall
+from ..agent.tooling import Tool, ToolCall
 
 class LLMTimeoutException(Exception):
     pass
+
+class LLMContentFilteringException(Exception):
+    ...
 
 class LLMResponse(SimpleNamespace):
     """ Class for LLM responses """
