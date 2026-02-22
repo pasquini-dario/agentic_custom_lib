@@ -1,10 +1,11 @@
+import openai
 from openai import OpenAI
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import json
 import os
 
-from . import LLM, LLMResponse
+from . import LLM, LLMResponse, LLMTimeoutException
 from ..agent.tooling import Argument, Tool, ToolCall
 
 class OpenaiLLM(LLM):
@@ -18,9 +19,9 @@ class OpenaiLLM(LLM):
             return "OPENAI_API_KEY is not set"
         return None
 
-    def __init__(self, model_name: str, **kargs):
+    def __init__(self, model_name: str, timeout=None, *args, **kwargs):
         self.model_name = model_name
-        self.client = OpenAI(**kargs)
+        self.client = OpenAI(timeout=timeout, *args, **kwargs)
 
     def generate(
         self,
@@ -43,16 +44,18 @@ class OpenaiLLM(LLM):
         if isinstance(think, str):
             think = {'effort' : think}
 
-
-        openai_response = gen_function(
-            model=self.model_name,
-            input=messages,
-            reasoning=think,
-            temperature=temperature,
-            max_output_tokens=max_tokens,
-            tools=tools,
-            **kwargs,
-        )
+        try:
+            openai_response = gen_function(
+                model=self.model_name,
+                input=messages,
+                reasoning=think,
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                tools=tools,
+                **kwargs,
+            )
+        except openai.APITimeoutError as ex:
+            raise LLMTimeoutException()
 
         if not format is None:
             structured_output = openai_response.output_parsed.model_dump()

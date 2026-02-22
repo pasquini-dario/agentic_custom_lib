@@ -6,7 +6,7 @@ from pydantic import BaseModel
 import os
 
 from .ollama_llm import OllamaLLM
-from . import LLM, LLMResponse, LLMContentFilteringException
+from . import LLM, LLMResponse, LLMContentFilteringException, LLMTimeoutException
 from ..agent.tooling import ToolCall
 
 
@@ -28,9 +28,9 @@ class AzureLLM(OllamaLLM):
                 return f"{env_var} is not set"
         return None
     
-    def __init__(self, model_name: str, **kargs):
+    def __init__(self, model_name: str, timeout=None, *args, **kwargs):
         self.model_name = model_name
-        self.client = AzureOpenAI(**kargs)
+        self.client = AzureOpenAI(timeout=timeout, *args, **kwargs)
 
     def generate(
         self,
@@ -67,6 +67,8 @@ class AzureLLM(OllamaLLM):
                 raise LLMContentFilteringException(ex.body)
             else:
                 raise ex
+        except openai.APITimeoutError as ex:
+            raise LLMTimeoutException()
 
         out = openai_response.choices[0]
 
