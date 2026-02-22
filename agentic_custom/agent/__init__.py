@@ -1,16 +1,21 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Generator
 from dataclasses import dataclass
 
-from ..llms import LLM, LLMResponse
+from ..llms import LLM, LLMResponse, LLMContentFilteringException
 from ..run_tracker import LLMRunTracker
-from ..tooling.tools_context import ToolsContext
+from .tooling.tools_context import ToolsContext
 from ..run_tracker import DEFAULT_CONTEXT_KEY
 from .round_promise import RoundPromise
 
-
 class Agent:
+    """
+    A class representing a basic agent capable of utilizing tools during an execution loop.
+
+    The main execution logic resides in the `execute_agent_loop` method, which manages the agent's iterative reasoning and tool invocation.
+    Tools to be used by the agent should be specified within a `ToolsContext` object.
+    """
     output_model = None
     system_prompt = None
 
@@ -70,7 +75,7 @@ class Agent:
         enabled_tools_keys: List[str]=None,
         verbose=True,
         context_key=DEFAULT_CONTEXT_KEY,
-    ):
+    ) -> Generator[RoundPromise, None, None]:
         """
         Execute the agent loop, given a ToolsContext object defining the tools to be used.
         If enabled_tools_keys is not None, only the tools with the keys in the list will be enabled. If it is None, all tools will be enabled.
@@ -88,7 +93,13 @@ class Agent:
             round_output = RoundPromise(iteration=i)
             
             # raw response from the model
-            response = self.execute(messages, tools=tool_schemas)
+            try:
+                response = self.execute(messages, tools=tool_schemas)
+            except LLMContentFilteringException as e:
+                response = self._handle_content_filtering_exception(e)
+            except Exception as e:
+                raise e
+
             round_output.set_response(response)
             self.run_tracker.add_message(response, verbose, context_key=context_key)
 
@@ -166,5 +177,9 @@ class Agent:
     def _end_round_messages_transformation_hook(self, round_number: int, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """ Hook function called after the round is ended. The value returned is the messages to be used in the next round. This can be used for message filtering and pruning."""
         return messages
+
+    def _handle_content_filtering_exception(self, exception: LLMContentFilteringException) -> LLMResponse:
+        """ Hook function called when a content filtering exception is raised """
+        raise LLMContentFilteringException()
     #########################################################################################
 

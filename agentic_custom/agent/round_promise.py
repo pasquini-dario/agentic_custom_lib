@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 from ..llms import LLMResponse
-from ..tooling import ToolCall
+from .tooling import ToolCall
 
 
 @dataclass

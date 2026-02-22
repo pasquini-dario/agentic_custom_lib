@@ -1,5 +1,4 @@
 
-
 def tool(func):
     """
     Decorator to mark a method as a tool method.
@@ -7,7 +6,6 @@ def tool(func):
     """
     func._is_tool = True
     return func
-
 
 class ToolsContext:
     """
