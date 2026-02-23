@@ -2,6 +2,8 @@
 from typing import Any, Dict, List, Callable, Optional
 
 class PromptFactory:
+    _ALLOWED_TYPES_FOR_COMPONENTS = {str}
+
     """
     A lightweight class for constructing prompts tailored for generic LLMs.
 
@@ -48,9 +50,7 @@ class PromptFactory:
     Note: It is a good idea to define tools/function-call names in a prompt factory as well. 
     """
 
-    _ALLOWED_TYPES_FOR_COMPONENTS = {str}
     _ROOT_PROMPT:str = None
-
 
     def __init__(self, prompt_factories:list[PromptFactory]=[], extra_attributes: dict(str, str | callable)={}):
         self.prompt_factories = prompt_factories
