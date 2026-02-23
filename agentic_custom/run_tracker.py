@@ -7,8 +7,12 @@ from .run_visualize import RunVisualizer
 
 DEFAULT_CONTEXT_KEY = 'default'
 
-
 class LLMRunTracker:
+    """
+    Class for tracking the execution of an agent:
+    - keep track of the number of tokens used by the LLM and the cost
+    - logs LLM responses and tool calls
+    """
 
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -22,6 +26,7 @@ class LLMRunTracker:
         self.tool_invocation_counts = defaultdict(int)
 
         self.messages = defaultdict(list)
+        self.tool_calls = defaultdict(list)
         self.total_cost = defaultdict(int)
 
     def set_llm(self, llm: LLM):
@@ -46,7 +51,7 @@ class LLMRunTracker:
                     self.total_cost[context_key] += cost
 
             self.num_messages += 1
-            self.messages[context_key].append(llm_response.message)
+            self.messages[context_key].append(llm_response)
 
         if verbose:
             if llm_response.is_successful():
@@ -63,6 +68,7 @@ class LLMRunTracker:
 
         name = tool_call.tool_name
         self.tool_invocation_counts[name] += 1
+        self.tool_calls[context_key].append(tool_call)
 
     def add_tool_result(self, tool_call: ToolCall, verbose):
         if verbose:
@@ -71,7 +77,6 @@ class LLMRunTracker:
     def signal_termination(self, reason, verbose):
         if verbose:
             self._visualizer.print_termination(reason)
-
 
     def get_cached_tokens_percentage(self):
         return self.tot_cached_tokens / self.tot_input_tokens
