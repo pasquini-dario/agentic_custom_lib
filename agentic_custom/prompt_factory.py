@@ -52,6 +52,14 @@ class PromptFactory:
 
     _ROOT_PROMPT:str = None
 
+    @staticmethod
+    def _is_format_string(string: str) -> bool:
+        try:
+            string.format()
+            return False
+        except:
+            return True
+
     def __init__(self, prompt_factories:list[PromptFactory]=[], extra_attributes: dict(str, str | callable)={}):
         self.prompt_factories = prompt_factories
         self.extra_attributes = extra_attributes
@@ -70,7 +78,6 @@ class PromptFactory:
     def _check_for_component_name_conflict(self, component_name: str, source: str):
         if component_name in self.attributes:
             raise ValueError(f"Component {component_name} from {source} already exists")
-
 
     def _create_attribute_index(self):
         # Store all the components in a single dictionary for easy access, normalize all the components to be callable.
@@ -91,8 +98,13 @@ class PromptFactory:
                 self.attributes[attribute] = self._normalize_component(raw_component)
 
 
-    def __call__(self, *args, **kwargs) -> str:
-        return self._ROOT_PROMPT.format(**{attribute: component(*args, **kwargs) for attribute, component in self.attributes.items()})
+    def _compile_components(self, format_string: str, *args, **kwargs):
+        attributes = {attribute: component(*args, **kwargs) for attribute, component in self.attributes.items()}
+        while self._is_format_string(format_string):
+            format_string = format_string.format(**attributes)
+        return format_string
 
+    def __call__(self, *args, **kwargs) -> str:
+        return self._compile_components(self._ROOT_PROMPT, *args, **kwargs)
 
 

@@ -1,5 +1,6 @@
 from .agent.tooling.tools_context import ToolsContext, tool
 from .agent.tooling import Tool, Argument, AgentTerminationException
+from .prompt_factory import PromptFactory
 from .agent import Agent, RoundPromise
 from .run_tracker import LLMRunTracker
 from .llms import LLM, LLMTimeoutException
@@ -39,4 +40,5 @@ __all__ = [
     "load_llm",
     "LLMTimeoutException",
     "RoundPromise",
+    'PromptFactory',
 ]
