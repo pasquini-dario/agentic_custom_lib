@@ -60,7 +60,7 @@ class PromptFactory:
         except:
             return True
 
-    def __init__(self, prompt_factories:list=[], extra_attributes: dict(str, str | callable)={}):
+    def __init__(self, prompt_factories:list=[], extra_attributes: dict={}):
         self.prompt_factories = prompt_factories
         self.extra_attributes = extra_attributes
         self.attributes = {}
