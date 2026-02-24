@@ -79,7 +79,12 @@ class LLMRunTracker:
             self._visualizer.print_termination(reason)
 
     def get_cached_tokens_percentage(self):
+        if self.tot_input_tokens == 0:
+            return 0.0
         return self.tot_cached_tokens / self.tot_input_tokens
 
     def print_summary(self):
-        self._visualizer.print_summary(self, DEFAULT_CONTEXT_KEY)
+        print(self.get_summary())
+
+    def get_summary(self):
+        return self._visualizer.get_summary(self, DEFAULT_CONTEXT_KEY)

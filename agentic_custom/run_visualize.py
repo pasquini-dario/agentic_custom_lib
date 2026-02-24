@@ -107,30 +107,33 @@ class RunVisualizer:
             print(f"│   {line}")
         print(f"└─────────────────────────────────────────────────────────────────────\n")
 
-    def print_summary(self, tracker: SummaryView, default_context_key: str):
-        print(f"{'=' * 70}")
-        print(f'# Summary #########################################################')
-        print(f'Total messages: {tracker.num_messages}')
-        print(f'Total input tokens: {tracker.tot_input_tokens}')
-        print(f'Total output tokens: {tracker.tot_output_tokens}')
-        print(f'Total reasoning tokens: {tracker.tot_reasoning_tokens}')
-        print(f'Total cached tokens: {tracker.tot_cached_tokens}')
-        print(f'Total uncached output tokens: {tracker.tot_input_tokens - tracker.tot_cached_tokens}')
-        print(f'Cached tokens hit ratio: {tracker.get_cached_tokens_percentage() * 100:.2f}%')
+    def get_summary(self, tracker: SummaryView, default_context_key: str) -> str:
+        lines = [
+            f"{'=' * 70}",
+            f'# Summary #########################################################',
+            f'Total messages: {tracker.num_messages}',
+            f'Total input tokens: {tracker.tot_input_tokens}',
+            f'Total output tokens: {tracker.tot_output_tokens}',
+            f'Total reasoning tokens: {tracker.tot_reasoning_tokens}',
+            f'Total cached tokens: {tracker.tot_cached_tokens}',
+            f'Total uncached output tokens: {tracker.tot_input_tokens - tracker.tot_cached_tokens}',
+            f'Cached tokens hit ratio: {tracker.get_cached_tokens_percentage() * 100:.2f}%',
+        ]
         if tracker.llm.HAS_COST:
             if len(tracker.total_cost) == 1 and default_context_key in tracker.total_cost:
-                print(f'Total cost: {tracker.total_cost[default_context_key]:.4f} USD')
+                lines.append(f'Total cost: {tracker.total_cost[default_context_key]:.4f} USD')
             else:
                 for context_key, cost in tracker.total_cost.items():
-                    print(f'  - {context_key}: {cost:.4f} USD')
+                    lines.append(f'  - {context_key}: {cost:.4f} USD')
                 total = sum(tracker.total_cost.values())
-                print(f'Total cost: {total:.4f} USD')
+                lines.append(f'Total cost: {total:.4f} USD')
         else:
-            print(f'Total cost: N/A')
-        print('Tool invocation counts:')
+            lines.append('Total cost: N/A')
+        lines.append('Tool invocation counts:')
         if tracker.tool_invocation_counts:
             for tool_name, count in tracker.tool_invocation_counts.items():
-                print(f'  - {tool_name}: {count}')
+                lines.append(f'  - {tool_name}: {count}')
         else:
-            print('  (none)')
-        print(f'########################################################')
+            lines.append('  (none)')
+        lines.append('########################################################')
+        return '\n'.join(lines)
