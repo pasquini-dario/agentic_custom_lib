@@ -67,7 +67,7 @@ class PromptFactory:
         self._create_attribute_index()
 
     @staticmethod
-    def _normalize_component(component: str | callable):
+    def _normalize_component(component):
         if isinstance(component, str):
             return lambda **kwargs: component
         elif callable(component):
