@@ -67,7 +67,7 @@ class ToolsContext:
         s += "\n" + "=" * 60
         print(s)
 
-    def add_tools(self, tool_context_to_add: ToolsContext, tool_names_to_add: List[str]=None):
+    def add_tools(self, tool_context_to_add, tool_names_to_add: List[str]=None):
         """
         Add tools from another tools context to the current tools context.
         If tool_names_to_add is provided, only the tools with the given names will be added.
