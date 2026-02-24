@@ -62,7 +62,7 @@ class LLMRunTracker:
             else:
                 print(f'[ERROR] --> {llm_response.error}')
 
-    def add_tool_invocation(self, tool_call: ToolCall, verbose):
+    def add_tool_invocation(self, tool_call: ToolCall, verbose=False, context_key:str=DEFAULT_CONTEXT_KEY):
         if verbose:
             self._visualizer.print_tool_invocation(tool_call)
 

@@ -44,13 +44,19 @@ class ToolsContext:
     When the object is initialized, it will create a dictionary with the tools names as keys and the functions as values.
     """
     def __init__(self, *args, **kwargs):
-        self.tool_methods = [
-            getattr(self, attr) for attr in dir(self) 
+        # collect decorated tools from the class
+        self.tools = [
+            getattr(self, attr)() for attr in dir(self) 
             if callable(getattr(self, attr)) and hasattr(getattr(self, attr), '_is_tool')
         ]
-        self.tools = [method() for method in self.tool_methods]
-        self.tools_functions = {tool.name: tool.function for tool in self.tools}
+        # setup tools dictionary
+        self.setup_tools()
 
+    def setup_tools(self):
+        self.tools_functions = {tool.name: tool.function for tool in self.tools}
+        
+    def get_tool_names(self) -> List[str]:
+        return [tool.name for tool in self.tools]
 
     def print_tools(self):
         s = "🛠️ Available Tools:"
@@ -59,3 +65,22 @@ class ToolsContext:
             s += "\n" + tool.print_tool()
         s += "\n" + "=" * 60
         print(s)
+
+    def add_tools(self, tool_context_to_add: ToolsContext, tool_names_to_add: List[str]=None):
+        """
+        Add tools from another tools context to the current tools context.
+        If tool_names_to_add is provided, only the tools with the given names will be added.
+        If tool_names_to_add is not provided, all tools will be added.
+        """
+        tools_to_add = tool_context_to_add.tools
+        if tool_names_to_add is not None:
+            tools_to_add = filter(lambda tool: tool.name in tool_names_to_add, tools_to_add)
+
+        if not tools_to_add:
+            raise ValueError(f"No tools to add from {tool_context_to_add}. Double check the tool names.")
+
+        self.tools.extend(tools_to_add)
+        self.setup_tools()
+
+
+

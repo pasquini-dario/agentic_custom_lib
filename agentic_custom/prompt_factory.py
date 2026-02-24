@@ -69,7 +69,7 @@ class PromptFactory:
     @staticmethod
     def _normalize_component(component: str | callable):
         if isinstance(component, str):
-            return lambda *args, **kwargs: component
+            return lambda **kwargs: component
         elif callable(component):
             return component
         else:
@@ -98,13 +98,13 @@ class PromptFactory:
                 self.attributes[attribute] = self._normalize_component(raw_component)
 
 
-    def _compile_components(self, format_string: str, *args, **kwargs):
-        attributes = {attribute: component(*args, **kwargs) for attribute, component in self.attributes.items()}
+    def _compile_components(self, format_string: str, **kwargs):
+        attributes = {attribute: component(**kwargs) for attribute, component in self.attributes.items()}
         while self._is_format_string(format_string):
             format_string = format_string.format(**attributes)
         return format_string
 
-    def __call__(self, *args, **kwargs) -> str:
-        return self._compile_components(self._ROOT_PROMPT, *args, **kwargs)
+    def __call__(self, **kwargs) -> str:
+        return self._compile_components(self._ROOT_PROMPT, **kwargs)
 
 
