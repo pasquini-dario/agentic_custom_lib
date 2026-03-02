@@ -31,7 +31,6 @@ class LLMRunTracker:
 
     def set_llm(self, llm: LLM):
         self.llm = llm
-        self._visualizer.print_llm_set(self.llm.model_name)
 
     def add_message(self, llm_response: LLMResponse, verbose=False, context_key=DEFAULT_CONTEXT_KEY):
         if llm_response.is_successful():
