@@ -8,11 +8,13 @@ from .llms import LLM, LLMTimeoutException
 from .llms.ollama_llm import OllamaLLM
 from .llms.azure_llm import AzureLLM
 from .llms.openai_llm import OpenaiLLM
+from .llms.anthropic_llm import AnthropicLLM
 
 PROVIDERS_MAP = {
     "ollama": OllamaLLM,
     "azure": AzureLLM,
     'openai': OpenaiLLM,
+    'anthropic': AnthropicLLM,
 }
 
 def check_llm_provider_requirements(provider_name: str) -> str:
