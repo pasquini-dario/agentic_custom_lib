@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from . import LLM, LLMResponse
 from ..agent.tooling import ToolCall
+from ..agent.tooling import Tool, ToolCall
 
 class AnthropicLLM(LLM):
 
