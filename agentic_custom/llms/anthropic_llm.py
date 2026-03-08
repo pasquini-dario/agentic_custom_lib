@@ -1,5 +1,7 @@
 from anthropic import Anthropic
 import json
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
 
 from . import LLM, LLMResponse
 from ..agent.tooling import ToolCall

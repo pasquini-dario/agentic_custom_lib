@@ -9,6 +9,7 @@ description = "Some personal cross-project code to implement minimal agentic loo
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
+    "anthropic==0.39.0",
     "ollama==0.6.1",
     "openai==2.14.0",
     "pydantic==2.12.5",

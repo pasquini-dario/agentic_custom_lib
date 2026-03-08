@@ -10,6 +10,7 @@ Current version supports LLMs served via:
 * OpenAI
 * Azure
 * Ollama
+* Anthropic
 
 # Installation
 
