@@ -1,4 +1,5 @@
-from anthropic import Anthropic
+from anthropic import Anthropic, AnthropicFoundry
+import os
 import json
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -14,6 +15,17 @@ class AnthropicLLM(LLM):
 
     DEFAULT_MAX_TOKENS = 64_000
     DEFAULT_MAX_THINKING_TOKENS = 10_000
+
+    ANTHROPIC_API_KEY_NAME = 'ANTHROPIC_API_KEY'
+
+    @staticmethod
+    def check_requirements():
+        required_env_vars = [self.ANTHROPIC_API_KEY_NAME]
+        for env_var in required_env_vars:
+            if not os.getenv(env_var):
+                return f"{env_var} is not set"
+        return None
+
 
     def __init__(self, model_name: str, timeout=None, *args, **kwargs):
         self.model_name = model_name
@@ -70,6 +82,7 @@ class AnthropicLLM(LLM):
         think: Any = True,
         tools: Optional[List[Dict[str, Any]]] = [],
         enable_prompt_cache: bool = False,
+        native_tools: List[Dict[str, Any]] = [],
         **kwargs
         ) -> LLMResponse:
 
@@ -79,6 +92,9 @@ class AnthropicLLM(LLM):
         think = self._parse_thinking(think, max_thinking_tokens)
 
         system_prompt, other_messages = self._prepare_messages(messages) 
+
+        if native_tools:
+            tools += native_tools
 
         if format:
             gen_function = self.client.messages.parse
@@ -184,3 +200,29 @@ class AnthropicLLM(LLM):
 
     def get_tool_args(self, tool_call) -> Dict[str, Any]:
         return tool_call['input']
+
+
+class AnthropicAzureLLM(AnthropicLLM):
+
+    AZURE_ANTHROPIC_API_KEY_NAME = 'AZURE_ANTHROPIC_API_KEY'
+    AZURE_ANTHROPIC_ENDPOINT_NAME = 'AZURE_ANTHROPIC_ENDPOINT'
+
+    @staticmethod
+    def check_requirements():
+        required_env_vars = [self.AZURE_ANTHROPIC_API_KEY_NAME, self.AZURE_ANTHROPIC_ENDPOINT_NAME]
+        for env_var in required_env_vars:
+            if not os.getenv(env_var):
+                return f"{env_var} is not set"
+        return None
+
+    def __init__(self, model_name: str, timeout=None, *args, **kwargs):
+        self.model_name = model_name
+        api_key = os.getenv(self.AZURE_ANTHROPIC_API_KEY_NAME)
+        endpoint = os.getenv(self.AZURE_ANTHROPIC_ENDPOINT_NAME)
+        self.client = AnthropicFoundry(
+            api_key=api_key,
+            resource=endpoint,
+            timeout=timeout,
+            *args,
+            **kwargs
+        )

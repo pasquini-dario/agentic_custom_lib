@@ -23,6 +23,11 @@ class OpenaiLLM(LLM):
         self.model_name = model_name
         self.client = OpenAI(timeout=timeout, *args, **kwargs)
 
+    def parse_thinking(self, think: Any) -> Dict[str, Any]:
+        if isinstance(think, str):
+            return {'effort' : think}
+        return think
+
     def generate(
         self,
         messages: List[Dict[str, Any]],
@@ -41,8 +46,7 @@ class OpenaiLLM(LLM):
             gen_function = self.client.responses.parse
             kwargs['text_format'] = format
 
-        if isinstance(think, str):
-            think = {'effort' : think}
+        think = self.parse_thinking(think)
 
         try:
             openai_response = gen_function(
@@ -131,3 +135,36 @@ class OpenaiLLM(LLM):
         reasoning_tokens = response.raw_response.usage.output_tokens_details.reasoning_tokens
         cached_tokens = response.raw_response.usage.input_tokens_details.cached_tokens
         return input_tokens, output_tokens, reasoning_tokens, cached_tokens
+
+
+    def generate_streaming(
+        self,
+        messages: List[Dict[str, Any]],
+        temperature: float=None,
+        max_tokens: Optional[int] = None,
+        format: Optional[BaseModel] = None,
+        think: Any = None,
+        tools: Optional[List[Dict[str, Any]]] = [],
+        **kwargs
+        ):
+
+        think = self.parse_thinking(think)
+
+        if format:
+            kwargs['text_format'] = format
+
+        with self.client.responses.stream(
+            model=self.model_name,
+            input=messages,
+            reasoning=think,
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+            tools=tools,
+            **kwargs
+        ) as stream:
+            for event in stream:
+                if isinstance(event, ResponseTextDeltaEvent):
+                    yield event.delta
+            raw_response = stream.get_final_response()
+        raise NotImplementedError("Need to parse the final response to get function calls etc.")
+        return raw_response

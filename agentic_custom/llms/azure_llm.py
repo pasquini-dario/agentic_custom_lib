@@ -16,6 +16,8 @@ class AzureLLM(OllamaLLM):
 
     @staticmethod
     def was_content_filtered(response: openai.BadRequestError) -> bool:
+        if 'innererror' not in response:
+            return False
         body = response['innererror']['content_filter_result']
         return any([body[kind]['filtered'] for kind in body])
 

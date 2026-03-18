@@ -8,9 +8,10 @@ Some personal cross-project code to implement minimal agentic loops, tooling, an
 
 Current version supports LLMs served via:
 * OpenAI
-* Azure
+* Azure_OpenAI
 * Ollama
 * Anthropic
+* Azure_Anthropic
 
 # Installation
 

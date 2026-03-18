@@ -119,3 +119,6 @@ class LLM:
 
     def get_thinking_from_response(self, response: LLMResponse) -> str:
         return None
+
+    def generate_streaming(self, *args, **kwargs):
+        raise NotImplementedError("This method is not implemented for this LLM")
