@@ -75,6 +75,7 @@ class Agent:
         enabled_tools_keys: List[str]=None,
         verbose=True,
         context_key=DEFAULT_CONTEXT_KEY,
+        **kargs
     ) -> Generator[RoundPromise, None, None]:
         """
         Execute the agent loop, given a ToolsContext object defining the tools to be used.
@@ -94,7 +95,7 @@ class Agent:
             
             # raw response from the model
             try:
-                response = self.execute(messages, tools=tool_schemas)
+                response = self.execute(messages, tools=tool_schemas, **kargs)
             except LLMContentFilteringException as e:
                 response = self._handle_content_filtering_exception(e)
             except Exception as e:
