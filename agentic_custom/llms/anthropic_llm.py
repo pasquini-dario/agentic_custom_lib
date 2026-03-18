@@ -209,7 +209,7 @@ class AnthropicAzureLLM(AnthropicLLM):
 
     @staticmethod
     def check_requirements():
-        required_env_vars = [self.AZURE_ANTHROPIC_API_KEY_NAME, self.AZURE_ANTHROPIC_ENDPOINT_NAME]
+        required_env_vars = [AnthropicAzureLLM.AZURE_ANTHROPIC_API_KEY_NAME, AnthropicAzureLLM.AZURE_ANTHROPIC_ENDPOINT_NAME]
         for env_var in required_env_vars:
             if not os.getenv(env_var):
                 return f"{env_var} is not set"
@@ -221,7 +221,7 @@ class AnthropicAzureLLM(AnthropicLLM):
         endpoint = os.getenv(self.AZURE_ANTHROPIC_ENDPOINT_NAME)
         self.client = AnthropicFoundry(
             api_key=api_key,
-            resource=endpoint,
+            base_url=endpoint,
             timeout=timeout,
             *args,
             **kwargs
