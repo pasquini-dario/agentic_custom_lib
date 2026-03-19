@@ -1,4 +1,10 @@
-from typing import List
+from __future__ import annotations
+
+import copy
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from agentic_custom.agent import Agent
 
 def tool(func):
     """
@@ -52,6 +58,7 @@ class ToolsContext:
         ]
         # setup tools dictionary
         self.setup_tools()
+        self.associated_agent = None
 
     def setup_tools(self):
         self.tools_functions = {tool.name: tool.function for tool in self.tools}
@@ -83,5 +90,16 @@ class ToolsContext:
         self.tools.extend(tools_to_add)
         self.setup_tools()
 
+    def register_to_agent(self, agent: Agent) -> ToolsContext:
+        """
+        Creates a shallow copy of this ToolsContext bound to a specific Agent.
+
+        The returned copy has its own `associated_agent` attribute set to `agent`,
+        while all other attributes (e.g. `tools`, `tools_functions`, and attributes added by subclasses) remain shared
+        references with the original instance.
+        """
+        cloned = copy.copy(self)
+        cloned.associated_agent = agent
+        return cloned
 
 

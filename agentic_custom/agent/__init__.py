@@ -1,7 +1,9 @@
+import copy
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Any, List, Generator
 from dataclasses import dataclass
+from uuid import uuid4
 
 from ..llms import LLM, LLMResponse, LLMContentFilteringException
 from ..run_tracker import LLMRunTracker
@@ -22,11 +24,14 @@ class Agent:
     def __init__(
         self,
             llm: LLM,
+            tools_context: ToolsContext,
             max_iterations: int=2**8,
             generation_params: Dict[str, Any]={},
             run_tracker: LLMRunTracker=None,
         ):
         self.llm = llm
+        self.id = 'root'
+        self.tools_context = tools_context.register_to_agent(self)
         self.max_iterations = max_iterations
         self.generation_params = generation_params
         if run_tracker is None:
@@ -62,15 +67,14 @@ class Agent:
         self.run_tracker.add_message(response, context_key=context_key)
         return response
 
-    def generate_tool_schemas(self, tools_context: ToolsContext, enabled_tools_keys: List[str]=None):
+    def generate_tool_schemas(self, enabled_tools_keys: List[str]=None):
         if enabled_tools_keys is not None:
-            tools_context.tools = [tool for tool in tools_context.tools if tool.name in enabled_tools_keys]
-        return [self.llm.make_schema_for_tool(tool) for tool in tools_context.tools]
+            self.tools_context.tools = [tool for tool in self.tools_context.tools if tool.name in enabled_tools_keys]
+        return [self.llm.make_schema_for_tool(tool) for tool in self.tools_context.tools]
 
     def execute_agent_loop(
         self,
         input_args,
-        tools_context: ToolsContext,
         messages: List[Dict[str, Any]]=None,
         enabled_tools_keys: List[str]=None,
         verbose=True,
@@ -87,7 +91,7 @@ class Agent:
             # get initial messages
             messages = self.get_ancestor_messages(*input_args)
         # list schemas for tools
-        tool_schemas = self.generate_tool_schemas(tools_context, enabled_tools_keys=enabled_tools_keys)
+        tool_schemas = self.generate_tool_schemas(enabled_tools_keys=enabled_tools_keys)
         # execute agent loop
         for i in range(self.max_iterations):
 
@@ -123,7 +127,7 @@ class Agent:
                     round_output.set_tool_call(tool_call)
                     self.run_tracker.add_tool_invocation(tool_call, verbose)
                     # execute tool
-                    tool_call.execute(tools_context)
+                    tool_call.execute(self.tools_context)
 
                     round_output.set_messages_history(messages)
                     # return control to the caller
@@ -165,6 +169,9 @@ class Agent:
             round_output.set_messages_history(messages)
             yield round_output
 
+    @staticmethod
+    def create_tools_context(*args, **kwargs):
+        raise NotImplementedError("create_tools_context is not implemented")
 
     # Hook functions
     def _get_response_hook(self, round_number: int, response: LLMResponse, messages: List[Dict[str, Any]]):
@@ -182,5 +189,14 @@ class Agent:
     def _handle_content_filtering_exception(self, exception: LLMContentFilteringException) -> LLMResponse:
         """ Hook function called when a content filtering exception is raised """
         raise LLMContentFilteringException()
+
+    def clone(self):
+        """ Clone the agent to be used as a sub-agent. The new agent will have a new ID and a new ToolsContext bound to the new agent.
+        The ToolsContext is a shallow copy of the original ToolsContext bound to the new agent, with the associated_agent attribute set to the new agent.
+        """
+        new_agent = copy.copy(self)
+        new_agent.id = str(uuid4())
+        new_agent.tools_context = new_agent.tools_context.register_to_agent(new_agent)
+        return new_agent
     #########################################################################################
 
