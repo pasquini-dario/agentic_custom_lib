@@ -26,7 +26,6 @@ class AnthropicLLM(LLM):
                 return f"{env_var} is not set"
         return None
 
-
     def __init__(self, model_name: str, timeout=None, *args, **kwargs):
         self.model_name = model_name
         self.client = Anthropic(timeout=timeout, *args, **kwargs)
@@ -56,7 +55,7 @@ class AnthropicLLM(LLM):
 
     @staticmethod
     def _filter_messages(content):
-        thinking, text, structured, tool_calls = [], [], [], []
+        thinking, text, tool_calls, structured = [], [], [], None
         for message in content:
             mtype = message['type']
             if mtype == 'thinking':
@@ -67,7 +66,9 @@ class AnthropicLLM(LLM):
                 continue
             if mtype == 'text':
                 if 'parsed_output' in message:
-                    structured.append(message['parsed_output'])
+                    if not structured is None:
+                        raise ValueError("Multiple structured outputs found. Case not supported.")
+                    structured = message['parsed_output']
                 else:
                     text.append(message[mtype])
         return thinking, text, structured, tool_calls
@@ -92,6 +93,8 @@ class AnthropicLLM(LLM):
         think = self._parse_thinking(think, max_thinking_tokens)
 
         system_prompt, other_messages = self._prepare_messages(messages) 
+        if system_prompt:
+            kwargs['system'] = system_prompt
 
         if native_tools:
             tools += native_tools
@@ -104,7 +107,6 @@ class AnthropicLLM(LLM):
 
         raw_response = gen_function(
             model=self.model_name,
-            system=system_prompt,
             max_tokens=max_tokens,
             messages=other_messages,
             temperature=temperature,
