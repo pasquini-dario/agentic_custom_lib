@@ -1,16 +1,23 @@
 from .. import Tool, Argument
 from ..tools_context import tool
 
-_USER_PROMPT = """
-╔══════════════════════════════════════════════════════════════════╗
-║                      🤖 USER INPUT REQUIRED                      ║
-╠══════════════════════════════════════════════════════════════════╣
-║  The AI agent needs your input to proceed.                       ║
-║                                                                  ║
-║  Question: {question}
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
-➤ Your response: """
+ASK_USER_TOOL_NAME = "ask_user"
+
+
+def _build_ask_user_prompt(question: str) -> str:
+    q = question.strip()
+    return (
+        "\n"
+        "User input required\n"
+        "\n"
+        "The agent needs your answer to continue.\n"
+        "\n"
+        "Question:\n"
+        f"{q}\n"
+        "\n"
+        "Your response: "
+    )
+
 
 @tool
 def ask_user_for_input_tool(*args, **kwargs) -> Tool:
@@ -18,12 +25,12 @@ def ask_user_for_input_tool(*args, **kwargs) -> Tool:
     Tool to ask the user a question and return the answer.
     """
     def _ask_user(question: str) -> str:
-        prompt = _USER_PROMPT.format(question=question)
+        prompt = _build_ask_user_prompt(question)
         user_answer = input(prompt)
         return {"user_answer": user_answer, 'status': 'success'}
 
     return Tool(
-        name="ask_user",
+        name=ASK_USER_TOOL_NAME,
         function=_ask_user,
         description="Ask the user a question and return the answer.",
         arguments=[

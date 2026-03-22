@@ -58,6 +58,8 @@ class ToolsContext:
         ]
         # setup tools dictionary
         self.setup_tools()
+        # used to store resources needed at runtime
+        self.resources = {}
         self.associated_agent = None
 
     def setup_tools(self):

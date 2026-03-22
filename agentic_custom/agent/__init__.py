@@ -31,7 +31,8 @@ class Agent:
         ):
         self.llm = llm
         self.id = 'root'
-        self.tools_context = tools_context.register_to_agent(self)
+        #self.tools_context = tools_context.register_to_agent(self)
+        self.tools_context = tools_context
         self.max_iterations = max_iterations
         self.generation_params = generation_params
         if run_tracker is None:
@@ -169,8 +170,7 @@ class Agent:
             round_output.set_messages_history(messages)
             yield round_output
 
-    @staticmethod
-    def create_tools_context(*args, **kwargs):
+    def create_tools_context(self, *args, **kwargs):
         raise NotImplementedError("create_tools_context is not implemented")
 
     # Hook functions

@@ -1,5 +1,13 @@
 from .agent.tooling.tools_context import ToolsContext, tool
 from .agent.tooling import Tool, Argument, AgentTerminationException
+from .config import (
+    AgenticConfig,
+    DEFAULT_OUTPUT_DIRECTORY,
+    config,
+    get_config,
+    get_output_directory,
+    set_output_directory,
+)
 from .prompt_factory import PromptFactory
 from .agent import Agent, RoundPromise
 from .run_tracker import LLMRunTracker
@@ -43,5 +51,11 @@ __all__ = [
     "load_llm",
     "LLMTimeoutException",
     "RoundPromise",
-    'PromptFactory',
+    "PromptFactory",
+    "AgenticConfig",
+    "DEFAULT_OUTPUT_DIRECTORY",
+    "config",
+    "get_config",
+    "get_output_directory",
+    "set_output_directory",
 ]
