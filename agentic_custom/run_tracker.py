@@ -1,9 +1,11 @@
+import os
 from collections import defaultdict
 
 from .llms import LLM, LLMResponse
 from .cost import cost_calculator
 from .agent.tooling import ToolCall
 from .run_visualize import RunVisualizer
+from .config import get_config
 
 DEFAULT_CONTEXT_KEY = 'default'
 
@@ -29,10 +31,22 @@ class LLMRunTracker:
         self.tool_calls = defaultdict(list)
         self.total_cost = defaultdict(int)
 
+        self.config = get_config()
+
     def set_llm(self, llm: LLM):
         self.llm = llm
 
-    def add_message(self, llm_response: LLMResponse, verbose=False, context_key=DEFAULT_CONTEXT_KEY):
+    def _store_message(self, llm_response: LLMResponse, agent_id: str):
+        """Store the message in a JSONL file"""
+        if not self.config.log_messages:
+            return
+        agent_path = os.path.join(self.config.output_directory, agent_id) + '.jsonl'
+        raise NotImplementedError("Not implemented")
+
+    def add_message(self, llm_response: LLMResponse, verbose=False, context_key=DEFAULT_CONTEXT_KEY, agent_id: str = None):
+        if agent_id is None:
+            self._store_message(llm_response, agent_id)
+
         if llm_response.is_successful():
             input_tokens, output_tokens, reasoning_tokens, cached_tokens = self.llm.get_num_tokens_response(llm_response)
             if input_tokens:

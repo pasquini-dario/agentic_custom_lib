@@ -21,6 +21,10 @@ class Agent:
     output_model = None
     system_prompt = None
 
+    @staticmethod
+    def generate_id() -> str:
+        return str(uuid4())
+
     def __init__(
         self,
             llm: LLM,
@@ -30,7 +34,7 @@ class Agent:
             run_tracker: LLMRunTracker=None,
         ):
         self.llm = llm
-        self.id = 'root'
+        self.id = self.generate_id()
         #self.tools_context = tools_context.register_to_agent(self)
         self.tools_context = tools_context
         self.max_iterations = max_iterations
@@ -195,8 +199,9 @@ class Agent:
         The ToolsContext is a shallow copy of the original ToolsContext bound to the new agent, with the associated_agent attribute set to the new agent.
         """
         new_agent = copy.copy(self)
-        new_agent.id = str(uuid4())
-        new_agent.tools_context = new_agent.tools_context.register_to_agent(new_agent)
+        new_agent.id = self.generate_id()
+        if self.tools_context is not None:
+            new_agent.tools_context = self.tools_context.register_to_agent(new_agent)
         return new_agent
     #########################################################################################
 

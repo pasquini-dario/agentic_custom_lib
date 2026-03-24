@@ -19,7 +19,7 @@ class SkillsToolsContext(ToolsContext):
     @tool
     def skill_tool_definition(self):
         def f(skill: str, args: str = None):
-            skill_content = self.skills_manager.get_skill(skill)
+            skill_content = self.skills_manager.get_skill(skill, args)
             if skill_content is None:
                 return f"Error: Skill '{skill}' not found"
             return skill_content

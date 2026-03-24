@@ -21,6 +21,7 @@ class LLMResponse(SimpleNamespace):
         thinking: Optional[str] = None,
         raw_response: Optional[Any] = None,
         structured_response: Optional[Any] = None,
+        serialized_response: Optional[str] = None,
         error: Optional[Exception] = None,
     ):
         super().__init__()
@@ -122,3 +123,10 @@ class LLM:
 
     def generate_streaming(self, *args, **kwargs):
         raise NotImplementedError("This method is not implemented for this LLM")
+
+
+    def to_json(self):
+        if self.serialized_response is None:
+            raise NotImplementedError("This method is not implemented for this LLM")
+        return self.serialized_response
+

@@ -5,8 +5,6 @@ from .config import (
     DEFAULT_OUTPUT_DIRECTORY,
     config,
     get_config,
-    get_output_directory,
-    set_output_directory,
 )
 from .prompt_factory import PromptFactory
 from .agent import Agent, RoundPromise
@@ -56,6 +54,4 @@ __all__ = [
     "DEFAULT_OUTPUT_DIRECTORY",
     "config",
     "get_config",
-    "get_output_directory",
-    "set_output_directory",
 ]

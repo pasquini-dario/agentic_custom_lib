@@ -32,6 +32,16 @@ class AgenticConfig:
         else:
             self._output_directory = Path(DEFAULT_OUTPUT_DIRECTORY)
 
+        self._log_messages: bool = False
+
+    @property
+    def log_messages(self) -> bool:
+        return self._log_messages
+
+    @log_messages.setter
+    def log_messages(self, value: bool) -> None:
+        self._log_messages = value
+
     @property
     def output_directory(self) -> Path:
         return self._output_directory
@@ -46,14 +56,6 @@ config = AgenticConfig()
 
 def get_config() -> AgenticConfig:
     return config
-
-
-def set_output_directory(path: Union[str, Path]) -> None:
-    config.output_directory = path
-
-
-def get_output_directory() -> Path:
-    return config.output_directory
 
 
 __all__ = [

@@ -1,6 +1,6 @@
 import os, glob
 import yaml
-from .....config import get_output_directory
+from .....config import get_config
 
 SKILLS_DIRECTORY_NAME = "skills"
 SKILLS_TOOL_NAME = "skill"
@@ -95,8 +95,9 @@ class Skill:
 
 class SkillsManager:
     def __init__(self, skills_directory: str = None):
+        config = get_config()
         if skills_directory is None:
-            self.skills_directory = os.path.join(get_output_directory(), SKILLS_DIRECTORY_NAME)
+            self.skills_directory = os.path.join(config.output_directory, SKILLS_DIRECTORY_NAME)
         else:
             self.skills_directory = skills_directory
         os.makedirs(self.skills_directory, exist_ok=True)
@@ -125,12 +126,15 @@ class SkillsManager:
         lines.append("</available_skills>")
         return "\n".join(lines)
 
-    def get_skill(self, skill_name: str) -> str | None:
+    def get_skill(self, skill_name: str, args: str = None) -> str | None:
         skill = self.loaded_skills.get(skill_name)
         if skill is None:
             return None
 
-        lines = [f'<skill_content name="{skill.name}">']
+        if args is None:
+            lines = [f'<skill_content name="{skill.name}">']
+        else:
+            lines = [f'<skill_content name="{skill.name}" args="{args}">']
         lines.append(skill.content)
         lines.append("")
         lines.append(f"Skill directory: {skill.base_directory}")
