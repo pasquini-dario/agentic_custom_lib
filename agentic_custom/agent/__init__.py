@@ -124,6 +124,7 @@ class Agent:
             # if tool calls are present, execute tools
             terminated = False
             if response.tool_calls:
+                round_output_promises = []
                 for tool_call in response.tool_calls:
                     # clone round output to avoid modifying the original object as multiple tool calls may be executed in the same round starting from the same LLM response
                     round_output = round_output.clone()
@@ -131,12 +132,20 @@ class Agent:
                     # log tool invocation for stats tracking
                     round_output.set_tool_call(tool_call)
                     self.run_tracker.add_tool_invocation(tool_call, verbose)
+
                     # execute tool
                     tool_call.execute(self.tools_context)
 
                     round_output.set_messages_history(messages)
+                    round_output_promises.append(round_output)
                     # return control to the caller
                     yield round_output
+
+                # at this point, all tool calls have for this round have started and they are running in parallel.
+
+                for round_output in round_output_promises:
+
+                    tool_call = round_output.tool_call
 
                     if not tool_call.is_executed():
                         # Make sure the tool call has been executed in case of an asynchronous tool call.
@@ -152,7 +161,6 @@ class Agent:
 
                     if tool_call.is_termination:
                         # Termination requested
-                        self.run_tracker.signal_termination('Termination requested', verbose)
                         round_output.set_termination(RoundPromise.TERMINATION_REQUESTED)
                         terminated = True
 
@@ -162,6 +170,7 @@ class Agent:
                 yield round_output
 
             if terminated:
+                self.run_tracker.signal_termination('Termination requested', verbose)
                 # explicit exit-condition met
                 return
 
