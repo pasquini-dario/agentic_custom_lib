@@ -9,6 +9,7 @@ from ..llms import LLM, LLMResponse, LLMContentFilteringException
 from ..run_tracker import LLMRunTracker
 from .tooling.tools_context import ToolsContext
 from ..run_tracker import DEFAULT_CONTEXT_KEY
+from ..context import MessageHistory
 from .round_promise import RoundPromise
 
 class Agent:
@@ -29,12 +30,18 @@ class Agent:
         self,
             llm: LLM,
             tools_context: ToolsContext,
+            message_history: MessageHistory=None,
             max_iterations: int=2**8,
             generation_params: Dict[str, Any]={},
             run_tracker: LLMRunTracker=None,
+
         ):
         self.llm = llm
         self.id = self.generate_id()
+        if message_history is None:
+            self.message_history = MessageHistory()
+        else:
+            self.message_history = message_history
         #self.tools_context = tools_context.register_to_agent(self)
         self.tools_context = tools_context
         self.max_iterations = max_iterations
@@ -80,7 +87,7 @@ class Agent:
     def execute_agent_loop(
         self,
         input_args,
-        messages: List[Dict[str, Any]]=None,
+        reset_message_history: bool=True,
         enabled_tools_keys: List[str]=None,
         verbose=True,
         context_key=DEFAULT_CONTEXT_KEY,
@@ -92,9 +99,13 @@ class Agent:
 
         When a yielded round_output contains a tool call, the caller must call round_output.wait() before advancing the generator (e.g. before the next next() or the next iteration of "for round_output in ..."); otherwise the loop will raise when it checks that the tool has been executed.
         """
-        if messages is None:
-            # get initial messages
-            messages = self.get_ancestor_messages(*input_args)
+
+        if reset_message_history:
+            self.message_history.reset()
+            # get initial messages if not provided
+            initial_messages = self.get_ancestor_messages(*input_args)
+            self.message_history.add_messages(initial_messages)
+       
         # list schemas for tools
         tool_schemas = self.generate_tool_schemas(enabled_tools_keys=enabled_tools_keys)
         # execute agent loop
@@ -104,7 +115,7 @@ class Agent:
             
             # raw response from the model
             try:
-                response = self.execute(messages, tools=tool_schemas, **kargs)
+                response = self.execute(self.message_history.get_messages(), tools=tool_schemas, **kargs)
             except LLMContentFilteringException as e:
                 response = self._handle_content_filtering_exception(e)
             except Exception as e:
@@ -114,12 +125,12 @@ class Agent:
             self.run_tracker.add_message(response, verbose, context_key=context_key)
 
             # log message for stats tracking
-            message = response.message
-            round_output.set_message(message)
+            current_messages = response.message
+            round_output.set_message(current_messages)
             # update history with model answer
-            messages += message
+            self.message_history.add_messages(current_messages)
 
-            self._get_response_hook(i, response, messages)
+            self._get_response_hook(i, response, self.message_history)
 
             # if tool calls are present, execute tools
             terminated = False
@@ -136,7 +147,7 @@ class Agent:
                     # execute tool
                     tool_call.execute(self.tools_context)
 
-                    round_output.set_messages_history(messages)
+                    round_output.set_messages_history(self.message_history)
                     round_output_promises.append(round_output)
                     # return control to the caller
                     yield round_output
@@ -153,7 +164,7 @@ class Agent:
 
                     tool_message = tool_call.generate_tool_response_message()
                     # update history with tool result
-                    messages.append(tool_message)  
+                    self.message_history.add_message(tool_message)  
                     
                     # log tool result for stats tracking
                     self.run_tracker.add_tool_result(tool_call, verbose)
@@ -166,7 +177,7 @@ class Agent:
 
             else:
                 # if no tool calls
-                round_output.set_messages_history(messages)
+                round_output.set_messages_history(self.message_history)
                 yield round_output
 
             if terminated:
@@ -175,19 +186,20 @@ class Agent:
                 return
 
             # external hook to transform messages (default behavior is to return the messages as is)
-            messages = self._end_round_messages_transformation_hook(i, messages)
+            self.message_history = self._end_round_messages_transformation_hook(i, self.message_history)
         else:
             # max iterations reached
             self.run_tracker.signal_termination('Max iterations reached', verbose)
             round_output.set_termination(RoundPromise.TERMINATION_REASON_MAX_ITERATIONS)
-            round_output.set_messages_history(messages)
+            round_output.set_messages_history(self.message_history)
             yield round_output
+
 
     def create_tools_context(self, *args, **kwargs):
         raise NotImplementedError("create_tools_context is not implemented")
 
     # Hook functions
-    def _get_response_hook(self, round_number: int, response: LLMResponse, messages: List[Dict[str, Any]]):
+    def _get_response_hook(self, round_number: int, response: LLMResponse, messages: MessageHistory):
         """ Hook function called after the model response is generated """
         ...
 
@@ -195,7 +207,7 @@ class Agent:
         """ Hook function called after a tool is executed """
         ...
 
-    def _end_round_messages_transformation_hook(self, round_number: int, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _end_round_messages_transformation_hook(self, round_number: int, messages: MessageHistory) -> MessageHistory:
         """ Hook function called after the round is ended. The value returned is the messages to be used in the next round. This can be used for message filtering and pruning."""
         return messages
 

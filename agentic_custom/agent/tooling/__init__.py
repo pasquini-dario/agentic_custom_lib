@@ -1,7 +1,8 @@
-import threading
 from dataclasses import dataclass
-from typing import Callable, List, Any, Dict
+from typing import Callable, List, Any, Dict, Type
 
+from .async_execution import AsyncRunner
+from .async_execution.async_runner_thread import AsyncRunnerThread
 from .tools_context import ToolsContext
 
 class AgentTerminationException(Exception):
@@ -86,6 +87,7 @@ class ToolCall:
         self,
         llm,
         raw_tool_call,
+        async_runner_cls: Type[AsyncRunner] = AsyncRunnerThread,
     ):
         self.llm = llm
         self.raw_tool_call = raw_tool_call
@@ -94,8 +96,8 @@ class ToolCall:
         self.is_tool_invocation_successful = None
         self.content = None
         self.is_termination = None
-        self._done = threading.Event()
-        self._thread = None
+        self._async_runner_cls = async_runner_cls
+        self._runner = None
 
     def is_executed(self):
         return self.is_tool_invocation_successful is not None
@@ -113,17 +115,14 @@ class ToolCall:
             self.is_termination = False
             self.content = str(ex)
             self.is_tool_invocation_successful = False
-        finally:
-            self._done.set()
 
     def execute(self, tool_context: ToolsContext):
-        self._done.clear()
-        self._thread = threading.Thread(target=self._run_tool, args=(tool_context,))
-        self._thread.start()
+        self._runner = self._async_runner_cls()
+        self._runner.start(self._run_tool, (tool_context,))
 
     def wait(self, timeout=None):
-        if self._thread is not None:
-            self._done.wait(timeout=timeout)
+        if self._runner is not None:
+            self._runner.wait(timeout=timeout)
 
     def generate_tool_response_message(self):
         """ Generate a tool result message to be inserted in the messages history. Format depends on the LLM in use."""

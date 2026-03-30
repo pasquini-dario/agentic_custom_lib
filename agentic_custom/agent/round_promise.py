@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
+from ..context import MessageHistory
 from ..llms import LLMResponse
 from .tooling import ToolCall
 
@@ -22,7 +23,7 @@ class RoundPromise:
     TASK_COMPLETED = 'task_completed'
 
     iteration: int = None
-    messages_history: List[Dict[str, Any]] = None
+    messages_history: MessageHistory = None
     response: LLMResponse = None
     message: Dict[str, Any] = None
     tool_call: ToolCall = None
@@ -49,8 +50,8 @@ class RoundPromise:
     def set_response(self, response: LLMResponse):
         self.response = response
 
-    def set_messages_history(self, messages: List[Dict[str, Any]]):
-        self.messages_history = messages
+    def set_messages_history(self, messages: MessageHistory):
+        self.messages_history = messages.clone()
 
     def set_message(self, message: Dict[str, Any]):
         self.message = message

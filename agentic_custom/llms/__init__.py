@@ -68,7 +68,6 @@ class LLMResponse(SimpleNamespace):
         """
         return self.tool_calls if self.tool_calls is not None else []
 
-
 class LLM:
     HAS_COST = False
 
