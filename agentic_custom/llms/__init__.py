@@ -1,3 +1,4 @@
+from tkinter.constants import SEL_FIRST
 from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 from types import SimpleNamespace
@@ -35,6 +36,10 @@ class LLMResponse(SimpleNamespace):
         self.structured_response = structured_response
         self.error = error
 
+    def get_token_utilization(self, llm: LLM) -> int:
+        input_tokens, output_tokens, reasoning_tokens, cached_tokens = llm.get_num_tokens_response(self)
+        return input_tokens + output_tokens
+
     def __getitem__(self, key):
         return getattr(self, key, None)
     
@@ -70,6 +75,7 @@ class LLMResponse(SimpleNamespace):
 
 class LLM:
     HAS_COST = False
+    DEFAULT_MAX_CONTEXT_WINDOW_SIZE = 200_000
 
     @staticmethod
     def check_requirements():
@@ -81,6 +87,10 @@ class LLM:
             Returns:
                 str: None if the requirements are met, otherwise a message indicating the missing requirements
         """
+
+
+    def get_context_window_size(self) -> int:
+        return self.DEFAULT_MAX_CONTEXT_WINDOW_SIZE
 
     def __init__(self, model_name: str):
         self.model_name = model_name

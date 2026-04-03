@@ -104,7 +104,7 @@ class Agent:
             self.message_history.reset()
             # get initial messages if not provided
             initial_messages = self.get_ancestor_messages(*input_args)
-            self.message_history.add_messages(initial_messages)
+            self.message_history.add_messages(0, initial_messages)
        
         # list schemas for tools
         tool_schemas = self.generate_tool_schemas(enabled_tools_keys=enabled_tools_keys)
@@ -128,7 +128,7 @@ class Agent:
             current_messages = response.message
             round_output.set_message(current_messages)
             # update history with model answer
-            self.message_history.add_messages(current_messages)
+            self.message_history.add_messages(i, current_messages)
 
             self._get_response_hook(i, response, self.message_history)
 
@@ -164,7 +164,7 @@ class Agent:
 
                     tool_message = tool_call.generate_tool_response_message()
                     # update history with tool result
-                    self.message_history.add_message(tool_message)  
+                    self.message_history.add_message(i, tool_message)  
                     
                     # log tool result for stats tracking
                     self.run_tracker.add_tool_result(tool_call, verbose)
@@ -187,6 +187,13 @@ class Agent:
 
             # external hook to transform messages (default behavior is to return the messages as is)
             self.message_history = self._end_round_messages_transformation_hook(i, self.message_history)
+
+            # check if context compaction is required
+            token_utilization = response.get_token_utilization(self.llm)
+            is_context_compaction_required = self.message_history.is_compactaion_required(token_utilization, self.llm)
+            if is_context_compaction_required:
+                ...
+                #self.message_history = ...
         else:
             # max iterations reached
             self.run_tracker.signal_termination('Max iterations reached', verbose)

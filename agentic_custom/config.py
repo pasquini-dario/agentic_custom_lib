@@ -33,10 +33,22 @@ class AgenticConfig:
             self._output_directory = Path(DEFAULT_OUTPUT_DIRECTORY)
 
         self._log_messages: bool = False
+        self._context_compaction_params = {
+            'trigger_llm_context_utilization_threshold': 0.8, # trigger compaction when the LLM context utilization is greater than this threshold
+            'number_of_rounds_messages_to_preserve': 3, # keep the last N rounds messages in the context
+        }
 
     @property
     def log_messages(self) -> bool:
         return self._log_messages
+
+    @property
+    def context_compaction_params(self) -> Dict[str, Any]:
+        return self._context_compaction_params
+
+    @context_compaction_params.setter
+    def context_compaction_params(self, value: Dict[str, Any]) -> None:
+        self._context_compaction_params = value
 
     @log_messages.setter
     def log_messages(self, value: bool) -> None:
